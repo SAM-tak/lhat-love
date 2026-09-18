@@ -21,11 +21,24 @@ megasource（love2d 公式の Windows 依存関係一括ビルドリポジトリ
 `scripts/build.ps1` が megasource の取得・`megasource/libs/love` ジャンクション作成・CMake 実行まで行う。
 
 ```powershell
-.\scripts\build.ps1              # Release ビルド（デバッガ入り）
+.\scripts\build.ps1              # Release ビルド（clang-cl、デバッガ入り）
 .\scripts\build.ps1 -Config Debug
 .\scripts\build.ps1 -Shipping    # 配布用: デバッガを外す → build-shipping\
 .\scripts\build.ps1 -VmOnly      # front end を外す → build-vmonly\（-Shipping と併用可）
+.\scripts\build.ps1 -Msvc        # cl.exe で → build-msvc\（他と併用可、名前に -msvc が付く）
 ```
+
+**処理系は clang-cl が既定**（Visual Studio 同梱の `VC\Tools\Llvm\x64\bin\clang-cl.exe`）。lhat の VM は Clang で computed goto、MSVC で switch のディスパッチになり（lhat `src/vm.c`）、lhatove 上で測った VM 負荷はすべて同等以上に速い（中央値、PGO 無し）:
+
+- while 3M 回 205.7 → 131.7 ms（0.64x）、for 3M 回 157.1 → 98.2（0.63x）
+- メンバ呼び出し 1M 回 451.4 → 374.1（0.83x）、table 200k 80.4 → 67.3（0.84x）
+- 再帰 fib(27) 77.5 → 72.4（0.93x）、ホスト関数 500k 回 169.3 → 164.9（0.97x。境界の向こうの C++ が支配）
+
+**Clang は Ninja Multi-Config で組む**。VS ジェネレータの `-T ClangCL` は**別の Installer コンポーネント**（MSBuild 用の ClangCL プラットフォームツールセット）が要り、無いと `MSB8020` で止まる。コンパイラ自体はそれを要らず、要るのは MSVC の環境（ヘッダ・ライブラリ・rc.exe）だけなので、`build.ps1` が vswhere で `vcvars64.bat` を自分のプロセスに読み込み、ninja・clang-cl とも VS 同梱のものを使う。`CMAKE_NINJA_CMCLDEPS_RC=OFF` は `love.rc` のため — Ninja は資源スクリプトの include を C コンパイラで走査するが、clang-cl は UTF-16 の `love.rc` を読めない（rc.exe 自体は読む）。megasource の LuaJIT は `msvcbuild.bat` を vcvarsall の中で回す外部プロジェクトなので**常に cl.exe** — 誰もリンクしていないので害は無い。`/MP` が clang-cl で unused と警告されるのは megasource の `if(MSVC)`（clang-cl でも `MSVC` は真）由来で無害。
+
+ジェネレータの違う木には組めない（CMake は後から変えられない）。`build.ps1` は既存の木のジェネレータを見て、違えば「消すか `-BuildDir` を」と言って止まる（自分では消さない）。
+
+**VM のみビルドの生成物は処理系に依らない** — バイナリの指紋は構成上限・命令数・命令幅・`LHAT_VERSION` だけ（lhat `src/serialize.c`）。clang で作った `Signatures.h` の MSVC 版 VM も、その逆も動く（確認済み）。
 
 L^ ランタイムの場所は CMake オプション `LHATOVE_LHAT_DIR`（デフォルト `../lhat`）。
 
@@ -84,7 +97,7 @@ L^ ランタイムの場所は CMake オプション `LHATOVE_LHAT_DIR`（デフ
 - 登録 context はプロセス寿命のファイルスコープ static でよい（雛形: `../lhat/stdlib/io.c`）。lhat は「登録呼び出し＝宣言」として hostdata タグ・host value タグ・エラー種を**プロセス単位で intern** するので（`676b8d1`）、program をいくつ作っても identity は 1 つ。context の中身も program ごとに作り直す理由が無い。ただし program 固有のポインタ（`LhatProgram *` 等）を入れるなら、restart で再登録が必ず走って更新されることが前提。`lh::Errors` / `lh::TypeRegistry` も同じ理由で `Runtime` の値メンバをやめプロセス寿命にした（`lh.cpp` の `sharedErrors` / `sharedRegistry`）
 - 登録が program に預けた state を返す口が `lhat_program_on_dispose`。lhatove では使わない — static context には返すものが無く、program 寿命の heap 資源は `ParkingLot` だけで `Runtime` のデストラクタが片付ける
 - プロセス共有 registry は `lhat_registry_dispose()` で返す。**LhatProgram が 1 つも無い時のみ**呼べるので、呼ぶのは restart ループを抜けた後（`love_lh_shutdown()` ← `src/love.cpp`）
-- C 側で保持する L^ 値は GC ルートにならない。永続値は `lhat_machine_register` で `L^.modules.love.*` に係留する
+- C 側で保持する L^ 値は GC ルートにならない。永続値は `lh::park` で **`L^.modules.lhatove.*`** に係留する（`ParkingLot` の表も `lhatove.registry`）。**登録済みモジュール（`love.*` 全部、`std.*`）の下に置いてはいけない**: lhat `d7dc455` 以降それらの表は program の全機械で共有され封印されていて、`lhat_machine_register` は封印を素通りして書けてしまう（lhat 側の穴、報告済み）。共有の黒い表の下に機械自身の表を置くとコレクタが二度と見ず、係留した物が名指されたまま回収される — physics が接触コールバックを全部失う／segfault した（`lh.h` の `privateRoot`）。`lhatove` という名前はどの登録も作らないので、機械自身の背骨になる
 - lhatstdlib は選別登録: `error` / `debug` / `regex` / `load` / `math` / `lton`。conf は **conf.lton**（LTON = テーブルリテラルの中身）で、check も compile もされず `lhatstdlib_lton_load` が program の loader 経由で読む — 本文は `f^` として読まれるので `p^` を呼べず、`love.*` はスコープにも入らない。ゲームも `std.lton.load` で同じ綴りのデータファイルを読める。`std.io`（love.filesystem が担当）と `std.math.vector3` は登録しない
 - **並行処理は言語のもの**: `std.thread` / `std.channel` / `std.async` を登録し、**love.thread は廃止した**。ワーカーの本体は同じユニットの閉包（`std.thread.spawn(p^ ... { ... }, args)`）で、carry が proto の参照と捕捉のスナップショットを運ぶ。チャネルは `std.channel.new()` / `.named(name)`。エンジンが足すのは 2 つだけ — `threaderror` イベント（`lhatstdlib_thread_on_finish` がワーカーのスレッドから `event::Message` を積む。`p^string^`）と、`Runtime` のデストラクタが program 破棄前に呼ぶ `lhatstdlib_thread_join_all` → `lhatstdlib_channel_forget_named`
 - **LOVE オブジェクトは機械を跨ぐ**: `Context::objectType` が全 hostdata 型に `lhat_register_hostdata_shared(retain, let_go)` を宣言する（`love::Object` の参照カウントは atomic）。だから ImageData も Channel も Texture も `spawn` の引数・チャネルの中身として渡り、**それを含む table** も運べる。Lua 版が任意の `love::Object` を Channel に通せたのと同じ範囲 — 別スレッドで**使って**よいかは Lua 版と同じく呼び手の責任
@@ -94,7 +107,7 @@ L^ ランタイムの場所は CMake オプション `LHATOVE_LHAT_DIR`（デフ
 - ホスト関数は `void`（`16caa92`）。答えは machine が渡す room に書く — `answers[0] = v; *answerCount = 1;`、タプルなら `answers[0..n]` と `*answerCount = n`。`*answerCount` は 0 で届くので `p^` と `dispose` は何もせず返る。`LHAT_MAX_TUPLE` より広い戻り値は登録が拒否されるので、room があふれることはない
 - `lh::guard` / `lh::catchexcept` は void 本体を取る（答えは本体が room に書き終えている）。`catchexcept` だけ room を受け取る — 例外が起きたら書かれたものをエラー値 1 個に差し替えるため。`lh::raise` は panic なので、呼んで `return;` するだけ
 - メインループは埋め込み `Boot.lh` の `run`（yieldable `p^`）。C++ は `lhat_machine_resume` を毎フレーム呼ぶだけ。optional なコールバックの解決は C++ 側の handlers 構築で行う（L^ では「あれば呼ぶ」を静的に書けない）
-- 前提 lhat は HEAD `78b72ec` 以降（`lhat_machine_panic`・`lhat_unit_export_conforms`・std.math・署名中 `Self^`・可変長アームの位置判定・登録型のランタイム型が葉 1 個・親と子の同時 import・登録型どうしは交わらない・登録の identity はプロセス単位で intern・`lhat_registry_dispose`・`lhat_program_on_dispose`・`lhat_program_invalidate`・std.lton と `lhatstdlib_lton_load`・ホスト型の親宣言・ホスト境界が count で答える・ホスト型の親宣言・DAP と `lhat_reload`・バイナリユニットと署名表と `LHAT_WITH_FRONTEND`・hostdata の共有契約・std.channel・ワーカーの完了通知・`lhat_program_set_lock`・弱参照キャッシュ）
+- 前提 lhat は HEAD `88996f1` 以降（`lhat_machine_panic`・`lhat_unit_export_conforms`・std.math・署名中 `Self^`・可変長アームの位置判定・登録型のランタイム型が葉 1 個・親と子の同時 import・登録型どうしは交わらない・登録の identity はプロセス単位で intern・`lhat_registry_dispose`・`lhat_program_on_dispose`・`lhat_program_invalidate`・std.lton と `lhatstdlib_lton_load`・ホスト型の親宣言・ホスト境界が count で答える・ホスト型の親宣言・DAP と `lhat_reload`・バイナリユニットと署名表と `LHAT_WITH_FRONTEND`・hostdata の共有契約・std.channel・ワーカーの完了通知・`lhat_program_set_lock`・弱参照キャッシュ・登録済みモジュールの共有と封印・`dap_session_begin` の program と言語）
 - 自型を返す/取るメンバは `Self^` で書く（`p^self^, Self^ -> Self^;`）。オーバーロードは「書かれた位置で型が交わらない or 個数で分かれる」こと。`f(string^, ...)` と `f(string^, Font, ...)` は拒否される — 尾の前に交わらない位置を置く（`print` の3アーム参照）
 - デバッガは lhat の DAP アダプタ（09 章）。`lovec --dap=PORT game/` でポートを開いて待ち、繋がってから起動列を進める。`LHATOVE_WITH_DAP`（既定 ON）で `lhatdap` をリンクし、OFF で VM 側の line hook ごと落とす（`scripts/build.ps1 -Shipping`）。**fused では実行時にも無効**（配布物がポートを開かない。`Boot.cpp` が `--dap` を捨てる）
 - **ワーカーも対象**。バインディングは何もしない — `lhat_debug_watch_machines` が `lhat_machine_new` を拾うので、`std.thread` が作った machine がそのまま DAP のスレッドになる（確認: spawn した閉包の中にブレークポイントが効き、threadId 2 で止まる）

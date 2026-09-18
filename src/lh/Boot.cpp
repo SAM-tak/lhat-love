@@ -275,7 +275,7 @@ static const Callback callbacks[] = {
 
 struct BootState
 {
-	LhatValue handlers = lhat_nil(); // parked at L^.modules.love.boot.handlers
+	LhatValue handlers = lhat_nil(); // parked at L^.modules.lhatove.boot.handlers
 	std::string handlersSignature;   // outlives the program (program.h)
 	const TypeRegistry *registry = nullptr;
 };
@@ -401,7 +401,7 @@ static bool buildHandlers(LhatMachine *machine, LhatValue game)
 	}
 
 	// Parked: the host holds no GC roots of its own.
-	if (!park(machine, "love.boot", "handlers", table))
+	if (!park(machine, "boot", "handlers", table))
 		return false;
 	bootState.handlers = table;
 	return true;
@@ -894,7 +894,11 @@ public:
 		paths.context = (void *) program;
 		paths.to_unit = toUnit;
 		paths.to_editor = toEditor;
-		if (dap_session_begin(&session_, machine, (uint16_t) port, &paths))
+		// The program stays alive for the session: the adapter reads its
+		// compiled line tables to say which breakpoints can bind. No
+		// DapLanguage: this engine carries no message catalogs yet, so the
+		// debugger's locale has nothing to switch (10 §7.4).
+		if (dap_session_begin(&session_, machine, program, (uint16_t) port, &paths, nullptr))
 			return nullptr;
 		return "no debugger connected";
 #else
@@ -1414,7 +1418,7 @@ static int boot(int argc, char **argv, bool console)
 			report("lhatove: error", "conf.lton: " + describeLton(machine, runtime.program(), read));
 			return 1;
 		}
-		if (!park(machine, "love.boot", "conf", confTable))
+		if (!park(machine, "boot", "conf", confTable))
 			return 1;
 		readConf(machine, confTable, conf);
 		if (!conf.identity.empty())
@@ -1529,7 +1533,7 @@ static int boot(int argc, char **argv, bool console)
 		return exitCodeOf(ran.value);
 
 	LhatValue gameTable = ran.value;
-	if (!park(machine, "love.boot", "game", gameTable))
+	if (!park(machine, "boot", "game", gameTable))
 	{
 		report("lhatove", "Could not keep the game's module table.");
 		return 1;
@@ -1554,7 +1558,7 @@ static int boot(int argc, char **argv, bool console)
 		}
 		run = bootRan.value;
 	}
-	if (!park(machine, "love.boot", "run", run))
+	if (!park(machine, "boot", "run", run))
 		return 1;
 
 	// 02 の 15.5: calling a yieldable procedure answers its coroutine rather
@@ -1575,7 +1579,7 @@ static int boot(int argc, char **argv, bool console)
 	}
 
 	LhatValue coroutine = started.value;
-	if (!park(machine, "love.boot", "coroutine", coroutine))
+	if (!park(machine, "boot", "coroutine", coroutine))
 		return 1;
 
 	// One resume per frame until the run returns.

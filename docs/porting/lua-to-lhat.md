@@ -182,3 +182,5 @@ lhatove の Lua/LuaJIT を L^ (lhat) へ置き換えるにあたっての確定�
   get は答えた値を灰に戻す（復活）。`dispose` でも `_forget` する（鍵が番地なので、解放された
   `love::Object` の番地を次の確保が貰いうる）。physics 20/20、churn は 120 フレームで
   collected 1,582 → 1,164 / live 8,939 → 7,643
+- **既定の処理系を clang-cl にした**（`scripts/build.ps1`、`-Msvc` で cl.exe）。lhat の VM は Clang で computed goto のディスパッチになり、lhatove 上の VM 負荷はループで約 36% 減、メンバ呼び出し・table で 16〜17% 減、ホスト境界越しはほぼ同じ（PGO 無しの数字）。Ninja Multi-Config + VS 同梱の clang-cl / ninja で、MSBuild の ClangCL ツールセットは要らない。VM のみビルドの生成物は処理系に依らない（指紋に処理系が入らない）
+- **係留は `L^.modules.lhatove.*`**。lhat `d7dc455` が登録済みモジュールの表を program 共有・封印にしたのに、`lhat_machine_register` は封印を素通りする。lhatove は `ParkingLot` の表を `love.registry`、Boot の値を `love.boot.*` に置いていたので、共有の黒い表の下に機械自身の表がぶら下がり、コレクタがそれを二度と見ない → 係留したコールバックが回収され physics が落ちた（clang で接触コールバック全消失、MSVC で segfault）。二分探索で `d7dc455` を特定。どの登録も作らない `lhatove` を根にして直し、`lh::park` は置き場の下位名しか受け取らない形にした（登録済みモジュールへ誤って置く道を無くす）

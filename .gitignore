@@ -76,16 +76,8 @@ stamp-h1
 /testing/output/actual/*.png
 /testing/output/difference/*.png
 
-# scripts/build.ps1 output
+# scripts/build.ps1 output: build/ and every variant beside it -- -Shipping,
+# -VmOnly, -Msvc (which adds -msvc), and any tree built against another lhat
+# for bisecting (-LhatDir ... -BuildDir ...).
 /build/
-
-# The shipping configuration builds beside the development one.
-build-shipping/
-
-# So does the one without the front end (scripts/build.ps1 -VmOnly).
-build-vmonly/
-build-vmonly-shipping/
-
-# And one built against another lhat, for bisecting a regression
-# (scripts/build.ps1 -LhatDir ... -BuildDir ...).
-build-oldlhat/
+/build-*/

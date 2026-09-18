@@ -1,11 +1,41 @@
 # lhat 側への報告事項
 
 lhatove の移植中に見つかった、lhat 本体で直すべき事項。解決したら「解決済み」へ移す。
-基準: lhat HEAD `78b72ec`（2026-09-05）。
+基準: lhat HEAD `88996f1`（2026-09-18）。
 
 ## 未解決
 
-（なし）
+- **親モジュールを import した後に子を import すると SEALED で止まる**（`995d0e8` で直った件の再発。
+  `d7dc455 feat: the registrations are the program's, not every machine's` 以降）。
+  自身に登録を持つ親（lhatove の `love` — `love.getVersion` 等）を `import^` した後、その下の
+  **どの子**（`love.system` でも `love.event` でも）を `import^` しても、その行で実行時に
+  `this table belongs to the machine; what it holds is written by the host, not from here`
+  （`LHAT_RUN_SEALED`）。子どうし（`love.system` + `love.event`）は通る。
+
+  ```lhat
+  module^imp
+  import^love          # 自身に登録を持つ親
+  import^love.event    # ← ここで SEALED
+  public^let^load = p^{ love.event.quit(0) }
+  ```
+
+  `d7dc455` が登録済みモジュールの表を program 共有にして封印したので、子を親の表に結ぶ
+  書き込み（`import^` の束縛）が封印に当たっていると読める。二分探索で `12a4641`（直前）は
+  通過、`d7dc455` で発生を確認。lhatove は `testing/lh/suite/tests/love.lh` がこれで落ちる
+  （`import^love` と `import^love.system`）— テストは回帰の検出器なので書き換えていない
+
+- **`lhat_machine_register` が封印を素通りする。** 封印を見るのは VM の SETINDEX だけで、
+  `lhat_table_set` は `table->sealed` を見ない。だからホストが `lhat_machine_register` で
+  登録済みモジュールの下に書くと、**program 共有の黒い表**に書き込みが通り、続く
+  `lhat_gc_barrier_back` がその共有表を**書いた機械の gray リストへ繋ぐ** — `d7dc455` が封印で
+  避けたはずの状態そのもの。黒い表の下に置かれた機械自身の表はコレクタに二度と見られないので、
+  そこに係留した物が名指されたまま回収される。
+
+  lhatove はこれで踏んだ: `ParkingLot` の表を `love.registry` に、Boot の値を `love.boot.*` に
+  係留していたため、physics が**接触コールバックを全部失う**（clang 版）か**segfault**（MSVC 版）。
+  lhatove 側は係留先を登録の外（`L^.modules.lhatove.*` = 機械自身の背骨）へ移して直した
+  （`lh.h` の `privateRoot`）。lhat 側では、登録済みモジュールへの `lhat_machine_register` を
+  **false で断る**のが良いと思う — 黙って壊れるより、ホストが最初の一回で気づける
 
 ## 提案
 

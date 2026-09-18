@@ -538,7 +538,8 @@ bool ParkingLot::attach(LhatMachine *machine)
 	LhatValue table;
 	if (!lhat_machine_make_table(machine, &table))
 		return false;
-	if (!lhat_machine_register(machine, "love", nullptr, "registry", table))
+	// The machine's own spine, not love.*: see privateRoot in lh.h.
+	if (!lhat_machine_register(machine, privateRoot, nullptr, "registry", table))
 		return false;
 	machine_ = machine;
 	table_ = (LhatTable *) lhat_as_object(table);
@@ -1022,9 +1023,12 @@ bool callMember(LhatMachine *machine, LhatValue table, const char *name, const L
 	return true;
 }
 
-bool park(LhatMachine *machine, const char *module, const char *name, LhatValue value)
+const char *const privateRoot = "lhatove";
+
+bool park(LhatMachine *machine, const char *where, const char *name, LhatValue value)
 {
-	return lhat_machine_register(machine, module, nullptr, name, value);
+	std::string module = std::string(privateRoot) + "." + where;
+	return lhat_machine_register(machine, module.c_str(), nullptr, name, value);
 }
 
 } // lh
