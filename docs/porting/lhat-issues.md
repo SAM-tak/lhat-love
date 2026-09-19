@@ -20,7 +20,16 @@ lhatove の移植中に見つかった、lhat 本体で直すべき事項。解�
   ```
 
   `d7dc455` が登録済みモジュールの表を program 共有にして封印したので、子を親の表に結ぶ
-  書き込み（`import^` の束縛）が封印に当たっていると読める。二分探索で `12a4641`（直前）は
+  書き込み（`import^` の束縛）が封印に当たっていると読める。
+
+  書いているのは `src/compile.c` の `LHAT_NODE_IMPORT_STMT`（`db2a7b9` で 6882–6887 行）:
+  経路がメンバの形（`love.event`）だと、`L^.modules.love.event` を読んだ値を、接頭辞 `love` の
+  ローカル（先の `import^love` の束縛）へ **`SETINDEX owner["event"] = slot`** で書き戻す。
+  その `owner` が共有・封印された `love` 表なので SEALED になる。しかも書き込みは**冗長** —
+  `slot` はまさにその表から読んだ `event` なので、`owner["event"]` は最初から `slot`。
+  接頭辞の根が `import^` の束縛したローカルなら SETINDEX を出さない（コンパイラ側）か、
+  封印された表への同じ値の SETINDEX を何もせず通す（VM 側）かで直る。子どうしが通るのは、
+  `love` がローカルに無く、書き戻す相手が機械自身の背骨になるから二分探索で `12a4641`（直前）は
   通過、`d7dc455` で発生を確認。lhatove は `testing/lh/suite/tests/love.lh` がこれで落ちる
   （`import^love` と `import^love.system`）— テストは回帰の検出器なので書き換えていない
 
