@@ -1,56 +1,35 @@
 # lhat 側への報告事項
 
 lhatove の移植中に見つかった、lhat 本体で直すべき事項。解決したら「解決済み」へ移す。
-基準: lhat HEAD `88996f1`（2026-09-18）。
+基準: lhat HEAD `b262db9`（2026-09-20）。
 
 ## 未解決
 
-- **親モジュールを import した後に子を import すると SEALED で止まる**（`995d0e8` で直った件の再発。
-  `d7dc455 feat: the registrations are the program's, not every machine's` 以降）。
-  自身に登録を持つ親（lhatove の `love` — `love.getVersion` 等）を `import^` した後、その下の
-  **どの子**（`love.system` でも `love.event` でも）を `import^` しても、その行で実行時に
-  `this table belongs to the machine; what it holds is written by the host, not from here`
-  （`LHAT_RUN_SEALED`）。子どうし（`love.system` + `love.event`）は通る。
-
-  ```lhat
-  module^imp
-  import^love          # 自身に登録を持つ親
-  import^love.event    # ← ここで SEALED
-  public^let^load = p^{ love.event.quit(0) }
-  ```
-
-  `d7dc455` が登録済みモジュールの表を program 共有にして封印したので、子を親の表に結ぶ
-  書き込み（`import^` の束縛）が封印に当たっていると読める。
-
-  書いているのは `src/compile.c` の `LHAT_NODE_IMPORT_STMT`（`db2a7b9` で 6882–6887 行）:
-  経路がメンバの形（`love.event`）だと、`L^.modules.love.event` を読んだ値を、接頭辞 `love` の
-  ローカル（先の `import^love` の束縛）へ **`SETINDEX owner["event"] = slot`** で書き戻す。
-  その `owner` が共有・封印された `love` 表なので SEALED になる。しかも書き込みは**冗長** —
-  `slot` はまさにその表から読んだ `event` なので、`owner["event"]` は最初から `slot`。
-  接頭辞の根が `import^` の束縛したローカルなら SETINDEX を出さない（コンパイラ側）か、
-  封印された表への同じ値の SETINDEX を何もせず通す（VM 側）かで直る。子どうしが通るのは、
-  `love` がローカルに無く、書き戻す相手が機械自身の背骨になるから二分探索で `12a4641`（直前）は
-  通過、`d7dc455` で発生を確認。lhatove は `testing/lh/suite/tests/love.lh` がこれで落ちる
-  （`import^love` と `import^love.system`）— テストは回帰の検出器なので書き換えていない
-
-- **`lhat_machine_register` が封印を素通りする。** 封印を見るのは VM の SETINDEX だけで、
-  `lhat_table_set` は `table->sealed` を見ない。だからホストが `lhat_machine_register` で
-  登録済みモジュールの下に書くと、**program 共有の黒い表**に書き込みが通り、続く
-  `lhat_gc_barrier_back` がその共有表を**書いた機械の gray リストへ繋ぐ** — `d7dc455` が封印で
-  避けたはずの状態そのもの。黒い表の下に置かれた機械自身の表はコレクタに二度と見られないので、
-  そこに係留した物が名指されたまま回収される。
-
-  lhatove はこれで踏んだ: `ParkingLot` の表を `love.registry` に、Boot の値を `love.boot.*` に
-  係留していたため、physics が**接触コールバックを全部失う**（clang 版）か**segfault**（MSVC 版）。
-  lhatove 側は係留先を登録の外（`L^.modules.lhatove.*` = 機械自身の背骨）へ移して直した
-  （`lh.h` の `privateRoot`）。lhat 側では、登録済みモジュールへの `lhat_machine_register` を
-  **false で断る**のが良いと思う — 黙って壊れるより、ホストが最初の一回で気づける
+（なし）
 
 ## 提案
 
 （なし）
 
 ## 解決済み
+
+- **親モジュールを import した後に子を import すると SEALED**（`995d0e8` で直った件の、`d7dc455` による再発）
+  → `b10f3fe fix: nobody writes the program's shared tables, and the host gets a root`。
+  原因は `src/compile.c` の `LHAT_NODE_IMPORT_STMT` で、`import^love.event` が読んだ子を接頭辞
+  `love` のローカル（`import^love` の束縛 = 共有・封印された表）へ SETINDEX で書き戻していた。
+  書き戻す先に同じ物が既にあれば書かない形（GETINDEX / SAME / NOT / JUMP_FALSE）になった。
+  子を先に取り込んだ時の仮置きを親の表で置き換える場合と、何も無い場合は従来どおり書く。
+  lhatove は `testing/lh/suite/tests/love.lh`（`import^love` + `import^love.system`）が通るように
+  なり、suite は 472/472（検出器として書き換えずに待っていた）
+- **`lhat_machine_register` が封印を素通りしていた** → 同コミット。共有表に `shared` の印が新設され
+  （登録済みモジュールの表と enum の members 表）、書き込みが必ず通る `vm_set_key` の入口 1 か所で断る。
+  `lhat_machine_register` は false、`lhat_machine_table_set` は true + `refused`。既存の `sealed` では
+  区別できなかった（L^ 環境表・enum の members 表はホストが正当に書く）し、色でも見分けられない
+  （機械自身のオブジェクトもマーク中は黒）。そして**ホストの根**
+  `lhat_machine_host_root(machine)` ができた — 機械が根として持ち、L^ から名前で辿れない表
+  （Lua の registry）。lhatove が `love.registry` / `love.boot.*` に係留して physics の接触
+  コールバックを失った（clang 版）／segfault した（MSVC 版）件は、いったん `L^.modules.lhatove.*`
+  （どの登録も作らない背骨）へ逃がして直し、この根ができてからそちらへ移した（`lh::park`）
 
 - 弱参照キャッシュ（復活付き）が欲しい → `78b72ec feat: the collector keeps the cache a host cannot keep for itself`。`lhat_machine_weak_cache_get` / `_put` / `_forget`（05 の 8.12、`vm.h`）。鍵はホストのポインタ（番地で比べるだけで指す先は読まない）、値は弱く、マシンごとの表。保証は `gc.c` の `atomic()` — 最後の `follow_gray` の後・白の入れ替えの前で、到達しなかったエントリをコレクタが外す。`get` は `LHAT_GC_PROPAGATE` の間に答えた値を灰にする（**求めること自体が再到達**）。lhatove の `pushObject` はこれに載っている（下の項の続き）
 

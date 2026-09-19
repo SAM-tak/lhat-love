@@ -275,7 +275,7 @@ static const Callback callbacks[] = {
 
 struct BootState
 {
-	LhatValue handlers = lhat_nil(); // parked at L^.modules.lhatove.boot.handlers
+	LhatValue handlers = lhat_nil(); // parked in the host root as boot.handlers
 	std::string handlersSignature;   // outlives the program (program.h)
 	const TypeRegistry *registry = nullptr;
 };
@@ -321,8 +321,6 @@ static void lh_boot_noquit(LhatMachine *machine, void *context, const LhatValue 
 // has to outlive it.
 static BootState bootState;
 
-static void lh_restartValue(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
-							LhatValue *answers, int *answerCount);
 static void lh_boot_restartInto(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
 								LhatValue *answers, int *answerCount);
 
@@ -401,7 +399,7 @@ static bool buildHandlers(LhatMachine *machine, LhatValue game)
 	}
 
 	// Parked: the host holds no GC roots of its own.
-	if (!park(machine, "boot", "handlers", table))
+	if (!park(machine, "boot.handlers", table))
 		return false;
 	bootState.handlers = table;
 	return true;
@@ -1418,7 +1416,7 @@ static int boot(int argc, char **argv, bool console)
 			report("lhatove: error", "conf.lton: " + describeLton(machine, runtime.program(), read));
 			return 1;
 		}
-		if (!park(machine, "boot", "conf", confTable))
+		if (!park(machine, "boot.conf", confTable))
 			return 1;
 		readConf(machine, confTable, conf);
 		if (!conf.identity.empty())
@@ -1533,7 +1531,7 @@ static int boot(int argc, char **argv, bool console)
 		return exitCodeOf(ran.value);
 
 	LhatValue gameTable = ran.value;
-	if (!park(machine, "boot", "game", gameTable))
+	if (!park(machine, "boot.game", gameTable))
 	{
 		report("lhatove", "Could not keep the game's module table.");
 		return 1;
@@ -1558,7 +1556,7 @@ static int boot(int argc, char **argv, bool console)
 		}
 		run = bootRan.value;
 	}
-	if (!park(machine, "boot", "run", run))
+	if (!park(machine, "boot.run", run))
 		return 1;
 
 	// 02 の 15.5: calling a yieldable procedure answers its coroutine rather
@@ -1579,7 +1577,7 @@ static int boot(int argc, char **argv, bool console)
 	}
 
 	LhatValue coroutine = started.value;
-	if (!park(machine, "boot", "coroutine", coroutine))
+	if (!park(machine, "boot.coroutine", coroutine))
 		return 1;
 
 	// One resume per frame until the run returns.

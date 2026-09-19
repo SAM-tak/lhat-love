@@ -462,25 +462,22 @@ void catchexcept(LhatMachine *machine, const LhatErrorKind *kind,
 // ends the run the host function was called from (vm.c's nested-fault rule).
 bool callMember(LhatMachine *machine, LhatValue table, const char *name, const LhatValue *args, size_t count, LhatRunResult *out);
 
-// Where this engine roots what it keeps: L^.modules.lhatove, a path no
-// registration makes, so it is the machine's own spine.
+// A value kept alive in the machine's host root (lhat_machine_host_root):
+// the table the machine roots and L^ has no name for -- what Lua calls its
+// registry. The host holds no GC roots of its own, so anything it needs
+// across calls is parked there, under `key`.
 //
-// It used to be under love.* (love.registry, love.boot.handlers), and that
-// became wrong when lhat began sharing a registered module's table among
-// every machine of the program and sealing it (05 の 8.7改5, lhat d7dc455).
-// A host write through lhat_machine_register is not stopped by the seal --
-// only SETINDEX checks it -- so the write went through into a black table
-// the program shares: every machine saw the last writer's value, and the
-// barrier threaded the shared table onto one machine's gray list. A table
-// of this machine's own under a black one is a reference the collector
-// never looks at again, so what was parked in it could be freed while it was
-// still named. physics lost every contact callback to that, or crashed.
-extern const char *const privateRoot;
-
-// A value kept alive at L^.modules.lhatove.<where>.<name>: the host holds no
-// GC roots of its own, so anything it needs across calls is parked there.
-// `where` names a part of the engine ("boot"), never a registered module.
-bool park(LhatMachine *machine, const char *where, const char *name, LhatValue value);
+// It used to be somewhere in L^.modules, and twice that was wrong. First
+// love.* (love.registry, love.boot.handlers): lhat d7dc455 made a registered
+// module's table the program's, shared by every machine, and a host write
+// went through into it -- a table of one machine's hung under a black table
+// every machine shares, one the collector never looks at again, so what was
+// parked there was collected while still named (physics lost every contact
+// callback, or crashed). Then L^.modules.lhatove, a path no registration
+// made: sound, but a place a program can reach by name. The host root is
+// neither -- lhat b10f3fe made it for exactly this, and refuses a host write
+// into a shared table outright now.
+bool park(LhatMachine *machine, const char *key, LhatValue value);
 
 } // lh
 } // love
