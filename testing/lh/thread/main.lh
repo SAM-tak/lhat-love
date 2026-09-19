@@ -33,7 +33,7 @@ public^let^load = p^{
 
         # A worker that closes over the unit's own `scale`: carry takes a
         # snapshot of it, so the far side reads 3 whatever happens here.
-        let^worker = try^std.thread.spawn(p^ ... {
+        let^worker = try^std.thread.spawn(p^... {
             try^{
                 let^inbox = try^std.channel.named("jobs")
                 let^outbox = try^std.channel.named("results")
@@ -61,7 +61,7 @@ public^let^load = p^{
         }, "alpha")
 
         # A closure crosses as its proto plus a snapshot of what it captured.
-        let^echo = try^std.thread.spawn(p^ ... {
+        let^echo = try^std.thread.spawn(p^... {
             try^{
                 let^outbox = try^std.channel.named("results")
                 let^f = ...[1]
@@ -74,7 +74,7 @@ public^let^load = p^{
             }
         }, f^n:number^-> number^{ return^n + 22 })
 
-        let^broken = try^std.thread.spawn(p^ ... { panic^"boom from a thread" })
+        let^broken = try^std.thread.spawn(p^... { panic^"boom from a thread" })
 
         try^jobs.push(7)
         try^jobs.push("hello")
@@ -130,7 +130,7 @@ public^let^update = p^dt:number^{
             var^atomic = 0
             let^extra = 100
             results.atomic(p^c:std.channel.Channel {
-                c.push("atomic")
+                c.push("atomic") catch^panic^it^
                 atomic := c.count() + extra
             })
             print($"atomic count {atomic}, pending {results.count()}, popped {results.pop()}")
