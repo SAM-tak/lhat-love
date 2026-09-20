@@ -991,6 +991,8 @@
     {"kind": "member", "module": "std.channel", "type": "Channel", "name": "pop", "signature": "p^self^ -> any^;"},
     {"kind": "member", "module": "std.channel", "type": "Channel", "name": "demand", "signature": "p^self^ -> any^;"},
     {"kind": "member", "module": "std.channel", "type": "Channel", "name": "demand", "signature": "p^self^, number^ -> any^;"},
+    {"kind": "member", "module": "std.channel", "type": "Channel", "name": "awaitable", "signature": "f^self^ -> number^;"},
+    {"kind": "member", "module": "std.channel", "type": "Channel", "name": "take", "signature": "f^self^ -> c^{f^ -> number^ -> any^};"},
     {"kind": "member", "module": "std.channel", "type": "Channel", "name": "peek", "signature": "p^self^ -> any^;"},
     {"kind": "member", "module": "std.channel", "type": "Channel", "name": "count", "signature": "f^self^ -> number^;"},
     {"kind": "member", "module": "std.channel", "type": "Channel", "name": "hasRead", "signature": "f^self^, number^ -> bool^;"},
