@@ -75,14 +75,14 @@ public^let^load = p^{
 
     # mesh
     mesh.setTexture(canvas)
-    let^mx, my, mu, mv, mr, mg, mb, ma = mesh.getVertex(3)
+    let^mx, my, mu, mv, mr, mg, mb, ma = mesh.getVertex(2)
     check("mesh vertex", mx = 64 and^my = 64 and^mu = 1 and^mr = 1)
-    mesh.setVertex(3, 60, 60, 1, 1, 0.5, 0.5, 0.5, 1)
-    let^mx2, my2, _u, _v, mr2, _g, _b, _a = mesh.getVertex(3)
+    mesh.setVertex(2, 60, 60, 1, 1, 0.5, 0.5, 0.5, 1)
+    let^mx2, my2, _u, _v, mr2, _g, _b, _a = mesh.getVertex(2)
     check("mesh set vertex", mx2 = 60 and^(mr2 - 0.5).abs() < 0.01)
     check("mesh count/mode", mesh.getVertexCount() = 4 and^mesh.getDrawMode() = "fan" and^mesh.getTexture()?)
     mesh.setDrawMode("triangles")
-    mesh.setVertexMap(1, 2, 3, 3, 4, 1)
+    mesh.setVertexMap(0, 1, 2, 2, 3, 0)
     check("mesh vertex map", mesh.getVertexMap().length^= 6 and^mesh.getDrawMode() = "triangles")
 
     # sprite batch
@@ -91,7 +91,7 @@ public^let^load = p^{
     batch.set(id, 15, 15)
     batch.setColor(1, 0, 0, 1)
     let^br, _bg, _bb, _ba = batch.getColor()
-    check("spritebatch", id = 1 and^id2 = 2 and^batch.getCount() = 2 and^br = 1 and^batch.getBufferSize() = 16)
+    check("spritebatch", id = 0 and^id2 = 1 and^batch.getCount() = 2 and^br = 1 and^batch.getBufferSize() = 16)
 
     # particles
     particles.setParticleLifetime(1, 2)
@@ -107,7 +107,7 @@ public^let^load = p^{
 
     # text batch
     let^tw, th = text.getDimensions()
-    check("textbatch", tw > 0 and^th > 0 and^text.add("more", 0, 20) = 2)
+    check("textbatch", tw > 0 and^th > 0 and^text.add("more", 0, 20) = 1)
 
     # state
     love.graphics.setBlendMode("add", "premultiplied")

@@ -125,7 +125,7 @@ static void lh_newMesh(LhatMachine *machine, void *context, const LhatValue *arg
 		size_t n = lhat_table_length(t);
 		std::vector<Vertex> vertices;
 		vertices.reserve(n);
-		for (size_t i = 1; i <= n; i++)
+		for (size_t i = 0; i < n; i++)
 		{
 			Vertex v;
 			if (!vertexTable(machine, lhat_table_get(t, lhat_integer((int64_t) i)), v))
@@ -157,7 +157,7 @@ static void lh_Mesh_setVertex(LhatMachine *machine, void *context, const LhatVal
 {
 	(void) context;
 	MESH_SELF();
-	size_t index = (size_t) lh::optNumber(args, count, 1, 1) - 1;
+	size_t index = (size_t) lh::optNumber(args, count, 1, 0);
 	Vertex v;
 	if (count >= 3 && lhat_is_object_kind(args[2], LHAT_OBJECT_TABLE))
 	{
@@ -185,7 +185,7 @@ static void lh_Mesh_getVertex(LhatMachine *machine, void *context, const LhatVal
 {
 	(void) context;
 	MESH_SELF();
-	size_t index = (size_t) lh::optNumber(args, count, 1, 1) - 1;
+	size_t index = (size_t) lh::optNumber(args, count, 1, 0);
 	lh::guard(machine, [&]() {
 		const Vertex *v = (const Vertex *) mesh->checkVertexDataOffset(index, nullptr);
 		float values[8] = {v->x, v->y, v->s, v->t, v->color.r / 255.0f, v->color.g / 255.0f, v->color.b / 255.0f, v->color.a / 255.0f};
@@ -204,12 +204,12 @@ static void lh_Mesh_setVertices(LhatMachine *machine, void *context, const LhatV
 		lh::raise(machine, "setVertices needs a table of vertices");
 		return;
 	}
-	size_t start = (size_t) lh::optNumber(args, count, 2, 1) - 1;
+	size_t start = (size_t) lh::optNumber(args, count, 2, 0);
 	const LhatTable *t = (const LhatTable *) lhat_as_object(args[1]);
 	size_t n = lhat_table_length(t);
 	std::vector<Vertex> vertices;
 	vertices.reserve(n);
-	for (size_t i = 1; i <= n; i++)
+	for (size_t i = 0; i < n; i++)
 	{
 		Vertex v;
 		if (!vertexTable(machine, lhat_table_get(t, lhat_integer((int64_t) i)), v))
@@ -247,12 +247,12 @@ static void lh_Mesh_setVertexMap(LhatMachine *machine, void *context, const Lhat
 		std::vector<float> parts;
 		numbersOf(args[1], parts);
 		for (float f : parts)
-			map.push_back((uint32) f - 1);
+			map.push_back((uint32) f);
 	}
 	else
 	{
 		for (size_t i = 1; i < count; i++)
-			map.push_back((uint32) lh::optNumber(args, count, i, 1) - 1);
+			map.push_back((uint32) lh::optNumber(args, count, i, 0));
 	}
 	lh::guard(machine, [&]() {
 		if (map.empty())
@@ -282,7 +282,7 @@ static void lh_Mesh_getVertexMap(LhatMachine *machine, void *context, const Lhat
 			for (size_t i = 0; i < map.size(); i++)
 			{
 				bool refused = false;
-				lhat_table_set(t, lhat_integer((int64_t) i + 1), lhat_integer((int64_t) map[i] + 1), &refused);
+				lhat_table_set(t, lhat_integer((int64_t) i), lhat_integer((int64_t) map[i]), &refused);
 			}
 		}
 		answers[0] = table;
@@ -350,7 +350,7 @@ static void lh_Mesh_setDrawRange(LhatMachine *machine, void *context, const Lhat
 	MESH_SELF();
 	lh::guard(machine, [&]() {
 		if (count >= 3)
-			mesh->setDrawRange((int) lh::optNumber(args, count, 1, 1) - 1, (int) lh::optNumber(args, count, 2, 0));
+			mesh->setDrawRange((int) lh::optNumber(args, count, 1, 0), (int) lh::optNumber(args, count, 2, 0));
 		else
 			mesh->setDrawRange();
 	});
@@ -365,10 +365,10 @@ static void lh_Mesh_getDrawRange(LhatMachine *machine, void *context, const Lhat
 	int start = 0, n = 0;
 	if (!mesh->getDrawRange(start, n))
 	{
-		start = -1;
+		start = 0;
 		n = 0;
 	}
-	answers[0] = lhat_integer(start + 1);
+	answers[0] = lhat_integer(start);
 	answers[1] = lhat_integer(n);
 	*answerCount = 2;
 }
@@ -490,11 +490,11 @@ static void lh_SpriteBatch_add(LhatMachine *machine, void *context, const LhatVa
 				*answerCount = 1;
 				return;
 			}
-			answers[0] = lhat_integer(batch->add(quad, transformOf(args, count, 2)) + 1);
+			answers[0] = lhat_integer(batch->add(quad, transformOf(args, count, 2)));
 			*answerCount = 1;
 			return;
 		}
-		answers[0] = lhat_integer(batch->add(transformOf(args, count, 1)) + 1);
+		answers[0] = lhat_integer(batch->add(transformOf(args, count, 1)));
 		*answerCount = 1;
 	});
 }
@@ -505,7 +505,7 @@ static void lh_SpriteBatch_set(LhatMachine *machine, void *context, const LhatVa
 {
 	(void) context;
 	BATCH_SELF();
-	int id = (int) lh::optNumber(args, count, 1, 1) - 1;
+	int id = (int) lh::optNumber(args, count, 1, 0);
 	lh::guard(machine, [&]() {
 		if (count >= 3 && lhat_is_object_kind(args[2], LHAT_OBJECT_HOSTDATA))
 		{
@@ -604,7 +604,7 @@ static void lh_SpriteBatch_setDrawRange(LhatMachine *machine, void *context, con
 	BATCH_SELF();
 	lh::guard(machine, [&]() {
 		if (count >= 3)
-			batch->setDrawRange((int) lh::optNumber(args, count, 1, 1) - 1, (int) lh::optNumber(args, count, 2, 0));
+			batch->setDrawRange((int) lh::optNumber(args, count, 1, 0), (int) lh::optNumber(args, count, 2, 0));
 		else
 			batch->setDrawRange();
 	});
@@ -618,10 +618,10 @@ static void lh_SpriteBatch_getDrawRange(LhatMachine *machine, void *context, con
 	int start = 0, n = 0;
 	if (!batch->getDrawRange(start, n))
 	{
-		start = -1;
+		start = 0;
 		n = 0;
 	}
-	answers[0] = lhat_integer(start + 1);
+	answers[0] = lhat_integer(start);
 	answers[1] = lhat_integer(n);
 	*answerCount = 2;
 }

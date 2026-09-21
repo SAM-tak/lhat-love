@@ -175,7 +175,7 @@ static void lh_getDirectoryItems(LhatMachine *machine, void *context, const Lhat
 		LhatValue value = lhat_nil();
 		bool refused = false;
 		lh::makeString(machine, items[i], &value);
-		lhat_table_set(t, lhat_integer((int64_t) i + 1), value, &refused);
+		lhat_table_set(t, lhat_integer((int64_t) i), value, &refused);
 	}
 	answers[0] = table;
 	*answerCount = 1;

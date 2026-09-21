@@ -529,7 +529,7 @@ bool numbersOf(LhatValue table, std::vector<float> &out)
 	size_t n = lhat_table_length(t);
 	out.clear();
 	out.reserve(n);
-	for (size_t i = 1; i <= n; i++)
+	for (size_t i = 0; i < n; i++)
 	{
 		LhatValue v = lhat_table_get(t, lhat_integer((int64_t) i));
 		out.push_back((float) lh::optNumber(&v, 1, 0, 0.0));

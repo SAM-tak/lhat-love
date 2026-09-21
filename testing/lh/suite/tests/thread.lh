@@ -3,9 +3,9 @@
 # short and joined at once, so the suite stays a single frame's worth of work.
 #
 # Every call that can run out of memory answers a union, and 04 の 4.5's
-# try^{ } is what reads one: try^ takes the value out and a refusal goes to
-# the arm, so the body reads as though nothing could fail. fits^ is left for
-# the places where the error IS the assertion.
+# catch^ arm is what reads one: try^ takes the value out and a refusal goes
+# to the arm at the end of the do^{ }, so the body reads as though nothing
+# could fail. fits^ is left for the places where the error IS the assertion.
 module^suite.tests.thread
 
 import^std.thread
@@ -18,7 +18,7 @@ let^test = require^"../lib/test.lh"
 public^let^run = p^{
     test.begin("std.channel")
 
-    try^{
+    do^{
         let^made = try^std.channel.new()
         test.number("a fresh channel is empty", 0, made.count())
 
@@ -95,15 +95,13 @@ public^let^run = p^{
         # named channel. The body names std.channel because this unit imported
         # it -- an import^ root is read off the worker's own L^.modules.
         let^worker = try^std.thread.spawn(p^ ... {
-            try^{
-                let^outbox = try^std.channel.named("suite.out")
-                let^n = ...[1]
-                if^n fits^number^{ try^outbox.push(n * 2) }
-                let^_^= try^outbox.push("done")
-            catch^:
-                return^"the worker could not reach its channel"
-            }
+            let^outbox = try^std.channel.named("suite.out")
+            let^n = ...[0]
+            if^n fits^number^{ try^outbox.push(n * 2) }
+            let^_^= try^outbox.push("done")
             return^"worked"
+        catch^:
+            return^"the worker could not reach its channel"
         }, 21)
         let^answer = try^worker.join()
         if^answer fits^string^{

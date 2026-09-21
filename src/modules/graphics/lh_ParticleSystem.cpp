@@ -355,7 +355,7 @@ static void lh_PS_getSizes(LhatMachine *machine, void *context, const LhatValue 
 	for (size_t i = 0; i < sizes.size(); i++)
 	{
 		bool refused = false;
-		lhat_table_set(t, lhat_integer((int64_t) i + 1), lhat_real(sizes[i]), &refused);
+		lhat_table_set(t, lhat_integer((int64_t) i), lhat_real(sizes[i]), &refused);
 	}
 	answers[0] = table;
 	*answerCount = 1;
@@ -406,7 +406,7 @@ static void lh_PS_getColors(LhatMachine *machine, void *context, const LhatValue
 	for (size_t i = 0; i < flat.size(); i++)
 	{
 		bool refused = false;
-		lhat_table_set(t, lhat_integer((int64_t) i + 1), lhat_real(flat[i]), &refused);
+		lhat_table_set(t, lhat_integer((int64_t) i), lhat_real(flat[i]), &refused);
 	}
 	answers[0] = table;
 	*answerCount = 1;
@@ -630,7 +630,7 @@ static void lh_TextBatch_add(LhatMachine *machine, void *context, const LhatValu
 	TEXT_SELF();
 	std::string s = lh::optString(args, count, 1, "");
 	Matrix4 m = transformOf(args, count, 2);
-	lh::guard(machine, [&]() { answers[0] = lhat_integer(text->add(coloredOf(s), m) + 1); *answerCount = 1; });
+	lh::guard(machine, [&]() { answers[0] = lhat_integer(text->add(coloredOf(s), m)); *answerCount = 1; });
 }
 
 // addf(text, wraplimit, align, x, y, ...) -> index
@@ -649,7 +649,7 @@ static void lh_TextBatch_addf(LhatMachine *machine, void *context, const LhatVal
 		return;
 	}
 	Matrix4 m = transformOf(args, count, 4);
-	lh::guard(machine, [&]() { answers[0] = lhat_integer(text->addf(coloredOf(s), wrap, align, m) + 1); *answerCount = 1; });
+	lh::guard(machine, [&]() { answers[0] = lhat_integer(text->addf(coloredOf(s), wrap, align, m)); *answerCount = 1; });
 }
 
 static void lh_TextBatch_clear(LhatMachine *machine, void *context, const LhatValue *args, size_t count,
@@ -693,7 +693,7 @@ static void lh_TextBatch_getWidth(LhatMachine *machine, void *context, const Lha
 {
 	(void) context;
 	TEXT_SELF();
-	int index = (int) lh::optNumber(args, count, 1, 0) - 1;
+	int index = (int) lh::optNumber(args, count, 1, -1);
 	lh::guard(machine, [&]() { answers[0] = lhat_real(text->getWidth(index)); *answerCount = 1; });
 }
 
@@ -702,7 +702,7 @@ static void lh_TextBatch_getHeight(LhatMachine *machine, void *context, const Lh
 {
 	(void) context;
 	TEXT_SELF();
-	int index = (int) lh::optNumber(args, count, 1, 0) - 1;
+	int index = (int) lh::optNumber(args, count, 1, -1);
 	lh::guard(machine, [&]() { answers[0] = lhat_real(text->getHeight(index)); *answerCount = 1; });
 }
 
@@ -711,7 +711,7 @@ static void lh_TextBatch_getDimensions(LhatMachine *machine, void *context, cons
 {
 	(void) context;
 	TEXT_SELF();
-	int index = (int) lh::optNumber(args, count, 1, 0) - 1;
+	int index = (int) lh::optNumber(args, count, 1, -1);
 	lh::guard(machine, [&]() {
 		float values[2] = {(float) text->getWidth(index), (float) text->getHeight(index)};
 		numberTuple(values, 2, answers, answerCount);

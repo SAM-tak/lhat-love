@@ -126,7 +126,7 @@ static void lh_Quad_setLayer(LhatMachine *machine, void *context, const LhatValu
 {
 	(void) context;
 	QUAD_SELF();
-	q->setLayer((int) lh::optNumber(args, count, 1, 1) - 1);
+	q->setLayer((int) lh::optNumber(args, count, 1, 0));
 }
 
 static void lh_Quad_getLayer(LhatMachine *machine, void *context, const LhatValue *args, size_t count,
@@ -134,7 +134,7 @@ static void lh_Quad_getLayer(LhatMachine *machine, void *context, const LhatValu
 {
 	(void) context;
 	QUAD_SELF();
-	answers[0] = lhat_integer(q->getLayer() + 1);
+	answers[0] = lhat_integer(q->getLayer());
 	*answerCount = 1;
 }
 
@@ -405,7 +405,7 @@ static void sendBooleans(LhatMachine *machine, Shader *s, const Shader::UniformI
 			const LhatTable *t = (const LhatTable *) lhat_as_object(args[i]);
 			for (int c = 0; c < components; c++)
 			{
-				LhatValue v = lhat_table_get(t, lhat_integer(c + 1));
+				LhatValue v = lhat_table_get(t, lhat_integer(c));
 				info->ints[i * components + c] = (lhat_is_bool(v) && lhat_as_bool(v)) ? 1 : 0;
 			}
 		}
@@ -436,7 +436,7 @@ static void sendMatrices(LhatMachine *machine, Shader *s, const Shader::UniformI
 			return;
 		}
 		const LhatTable *t = (const LhatTable *) lhat_as_object(args[i]);
-		LhatValue first = lhat_table_get(t, lhat_integer(1));
+		LhatValue first = lhat_table_get(t, lhat_integer(0));
 		int base = i * elements;
 		if (lhat_is_object_kind(first, LHAT_OBJECT_TABLE))
 		{
@@ -444,7 +444,7 @@ static void sendMatrices(LhatMachine *machine, Shader *s, const Shader::UniformI
 			for (int row = 0; row < rows; row++)
 			{
 				std::vector<float> line;
-				numbersOf(lhat_table_get(t, lhat_integer(row + 1)), line);
+				numbersOf(lhat_table_get(t, lhat_integer(row)), line);
 				for (int column = 0; column < columns; column++)
 					values[base + column * rows + row] = column < (int) line.size() ? line[column] : 0.0f;
 			}

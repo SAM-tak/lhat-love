@@ -110,7 +110,7 @@ static void lh_Contact_getNormal(LhatMachine *machine, void *context, const Lhat
 	numbers(out, 2, answers, answerCount);
 }
 
-// getChildren() -> (childA, childB), 1-based.
+// getChildren() -> (childA, childB), counted from 0 as L^ counts.
 static void lh_Contact_getChildren(LhatMachine *machine, void *context, const LhatValue *args, size_t count,
 								   LhatValue *answers, int *answerCount)
 {
@@ -118,8 +118,8 @@ static void lh_Contact_getChildren(LhatMachine *machine, void *context, const Lh
 	CONTACT_SELF();
 	int a = 0, b = 0;
 	c->getChildren(a, b);
-	answers[0] = lhat_integer(a + 1);
-	answers[1] = lhat_integer(b + 1);
+	answers[0] = lhat_integer(a);
+	answers[1] = lhat_integer(b);
 	*answerCount = 2;
 }
 

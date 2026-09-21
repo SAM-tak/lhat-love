@@ -8,8 +8,9 @@
 # the engine keeps is the threaderror event, since a loop of its own would
 # otherwise never learn that a worker died.
 #
-# Every one of these calls can run out of memory, so 04 の 4.5's try^{ } is
-# what reads them: try^ takes the value out and a refusal goes to the arm.
+# Every one of these calls can run out of memory, so 04 の 4.5's catch^ arm
+# is what reads them: try^ takes the value out and a refusal goes to the
+# arm at the end of the block -- a do^{ }, or a p^ body itself.
 module^threadtest
 
 import^std.thread
@@ -27,82 +28,76 @@ var^awaited = false^
 var^scale = 3
 
 public^let^load = p^{
-    try^{
-        let^jobs = try^std.channel.named("jobs")
-        let^results = try^std.channel.named("results")
+    let^jobs = try^std.channel.named("jobs")
+    let^results = try^std.channel.named("results")
 
-        # A worker that closes over the unit's own `scale`: carry takes a
-        # snapshot of it, so the far side reads 3 whatever happens here.
-        let^worker = try^std.thread.spawn(p^... {
-            try^{
-                let^inbox = try^std.channel.named("jobs")
-                let^outbox = try^std.channel.named("results")
-                var^name = "worker"
-                let^first = ...[1]
-                if^first fits^string^{ name := first }
-                try^outbox.push($"{name} started with scale {scale}")
-                repeat^{
-                    let^job = inbox.demand()
-                    if^job fits^nil^{ break^}
-                    if^job fits^string^{
-                        if^job = "stop" { break^}
-                        try^outbox.push($"{name} got string {job}")
-                    elseif^job fits^number^:
-                        try^outbox.push(job * scale)
-                    elseif^job fits^t^{ x : number^, y : number^}:
-                        try^outbox.push({ sum = job.x + job.y, from = name })
-                    }
-                }
-                try^outbox.push($"{name} done")
-            catch^:
-                return^$"the worker gave up: {it^.message}"
-            }
-            return^"worker returned"
-        }, "alpha")
-
-        # A closure crosses as its proto plus a snapshot of what it captured.
-        let^echo = try^std.thread.spawn(p^... {
-            try^{
-                let^outbox = try^std.channel.named("results")
-                let^f = ...[1]
-                if^f fits^p^number^-> number^; {
-                    try^outbox.push($"closure says {f(20)}")
-                }
-                try^outbox.push("echo done")
-            catch^:
-                return^nil^
-            }
-        }, f^n:number^-> number^{ return^n + 22 })
-
-        let^broken = try^std.thread.spawn(p^... { panic^"boom from a thread" })
-
-        try^jobs.push(7)
-        try^jobs.push("hello")
-        try^jobs.push({ x = 1.5, y = 2.5 })
-        try^jobs.supply("stop")
-
-        # 15.14: the end of a body completes an std.async wait, so this parks
-        # on the worker rather than asking done() over and over.
-        let^ticket = worker.awaitable()
+    # A worker that closes over the unit's own `scale`: carry takes a
+    # snapshot of it, so the far side reads 3 whatever happens here.
+    let^worker = try^std.thread.spawn(p^... {
+        let^inbox = try^std.channel.named("jobs")
+        let^outbox = try^std.channel.named("results")
+        var^name = "worker"
+        let^first = ...[0]
+        if^first fits^string^{ name := first }
+        try^outbox.push($"{name} started with scale {scale}")
         repeat^{
-            let^ready = std.async.wait(2)
-            if^ready fits^nil^{ break^}
-            if^ready = ticket { awaited := true^ break^}
+            let^job = inbox.demand()
+            if^job fits^nil^{ break^}
+            if^job fits^string^{
+                if^job = "stop" { break^}
+                try^outbox.push($"{name} got string {job}")
+            elseif^job fits^number^:
+                try^outbox.push(job * scale)
+            elseif^job fits^t^{ x : number^, y : number^}:
+                try^outbox.push({ sum = job.x + job.y, from = name })
+            }
         }
-        let^said = try^worker.join()
-        if^said fits^string^{ received.push^(said) }
-        echo.join()
-        # here the error IS what is being asked for, so the union stands
-        if^broken.join() fits^std.thread.ThreadError.BadResult {
-            errorText := "joined a body that panicked"
-        }
-        worker.dispose()
-        echo.dispose()
-        broken.dispose()
+        try^outbox.push($"{name} done")
+        return^"worker returned"
     catch^:
-        print($"threads could not start: {it^.message}")
-        love.event.quit(1)
+        return^$"the worker gave up: {it^.message}"
+    }, "alpha")
+
+    # A closure crosses as its proto plus a snapshot of what it captured.
+    let^echo = try^std.thread.spawn(p^... {
+        let^outbox = try^std.channel.named("results")
+        let^f = ...[0]
+        if^f fits^p^number^-> number^; {
+            try^outbox.push($"closure says {f(20)}")
+        }
+        try^outbox.push("echo done")
+    catch^:
+        return^nil^
+    }, f^n:number^-> number^{ return^n + 22 })
+
+    let^broken = try^std.thread.spawn(p^... { panic^"boom from a thread" })
+
+    try^jobs.push(7)
+    try^jobs.push("hello")
+    try^jobs.push({ x = 1.5, y = 2.5 })
+    try^jobs.supply("stop")
+
+    # 15.14: the end of a body completes an std.async wait, so this parks
+    # on the worker rather than asking done() over and over.
+    let^ticket = worker.awaitable()
+    repeat^{
+        let^ready = std.async.wait(2)
+        if^ready fits^nil^{ break^}
+        if^ready = ticket { awaited := true^ break^}
     }
+    let^said = try^worker.join()
+    if^said fits^string^{ received.push^(said) }
+    echo.join()
+    # here the error IS what is being asked for, so the union stands
+    if^broken.join() fits^std.thread.ThreadError.BadResult {
+        errorText := "joined a body that panicked"
+    }
+    worker.dispose()
+    echo.dispose()
+    broken.dispose()
+catch^:
+    print($"threads could not start: {it^.message}")
+    love.event.quit(1)
 }
 
 # The engine's own: what lhatstdlib_thread_on_finish puts on the queue.
@@ -113,37 +108,35 @@ public^let^threaderror = p^message:string^{
 
 public^let^update = p^dt:number^{
     frames += 1
-    try^{
-        let^results = try^std.channel.named("results")
-        repeat^{
-            let^got = results.pop()
-            if^got fits^nil^{ break^}
-            if^got fits^string^{
-                received.push^(got)
-            elseif^got fits^number^:
-                received.push^($"number {got}")
-            elseif^got fits^t^{ sum : number^, from : string^}:
-                received.push^($"table sum={got.sum} from {got.from}")
-            }
+    let^results = try^std.channel.named("results")
+    repeat^{
+        let^got = results.pop()
+        if^got fits^nil^{ break^}
+        if^got fits^string^{
+            received.push^(got)
+        elseif^got fits^number^:
+            received.push^($"number {got}")
+        elseif^got fits^t^{ sum : number^, from : string^}:
+            received.push^($"table sum={got.sum} from {got.from}")
         }
-        if^errors > 0 and^awaited {
-            var^atomic = 0
-            let^extra = 100
-            results.atomic(p^c:std.channel.Channel {
-                c.push("atomic") catch^panic^it^
-                atomic := c.count() + extra
-            })
-            print($"atomic count {atomic}, pending {results.count()}, popped {results.pop()}")
-            for^line in^received { print($"  {line}") }
-            print($"broken: {errorText}")
-            let^ok = received.length^= 8 and^atomic = 101
-                     and^errorText = "joined a body that panicked"
-            if^ok { love.event.quit(8) else^: love.event.quit(1) }
-        }
-    catch^:
-        love.event.quit(1)
+    }
+    if^errors > 0 and^awaited {
+        var^atomic = 0
+        let^extra = 100
+        results.atomic(p^c:std.channel.Channel {
+            c.push("atomic") catch^panic^it^
+            atomic := c.count() + extra
+        })
+        print($"atomic count {atomic}, pending {results.count()}, popped {results.pop()}")
+        for^line in^received { print($"  {line}") }
+        print($"broken: {errorText}")
+        let^ok = received.length^= 8 and^atomic = 101
+                    and^errorText = "joined a body that panicked"
+        if^ok { love.event.quit(8) else^: love.event.quit(1) }
     }
     if^frames > 600 { love.event.quit(2) }
+catch^:
+    love.event.quit(1)
 }
 
 public^let^draw = p^{

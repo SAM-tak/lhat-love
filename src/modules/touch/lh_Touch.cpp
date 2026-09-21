@@ -45,7 +45,7 @@ static void lh_getTouches(LhatMachine *machine, void *context, const LhatValue *
 	for (size_t i = 0; i < touches.size(); i++)
 	{
 		bool refused = false;
-		lhat_table_set(t, lhat_integer((int64_t) i + 1), lhat_integer(touches[i].id), &refused);
+		lhat_table_set(t, lhat_integer((int64_t) i), lhat_integer(touches[i].id), &refused);
 	}
 	answers[0] = table;
 	*answerCount = 1;

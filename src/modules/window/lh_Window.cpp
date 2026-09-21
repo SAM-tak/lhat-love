@@ -52,7 +52,7 @@ bool readWindowSettings(LhatMachine *machine, LhatValue table, WindowSettings &s
 	settings.minheight = (int) lh::fieldNumber(machine, table, "minheight", settings.minheight);
 	settings.borderless = lh::fieldBool(machine, table, "borderless", settings.borderless);
 	settings.centered = lh::fieldBool(machine, table, "centered", settings.centered);
-	settings.displayindex = (int) lh::fieldNumber(machine, table, "displayindex", settings.displayindex + 1) - 1;
+	settings.displayindex = (int) lh::fieldNumber(machine, table, "displayindex", settings.displayindex);
 	settings.usedpiscale = lh::fieldBool(machine, table, "usedpiscale", settings.usedpiscale);
 	settings.refreshrate = lh::fieldNumber(machine, table, "refreshrate", settings.refreshrate);
 	if (lh::fieldIs(machine, table, "x", LHAT_VALUE_INTEGER) || lh::fieldIs(machine, table, "x", LHAT_VALUE_REAL))

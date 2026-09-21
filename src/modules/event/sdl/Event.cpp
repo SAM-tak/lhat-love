@@ -504,7 +504,7 @@ Message *Event::convert(const SDL_Event &e)
 				}
 			}
 			SDL_free(displays);
-			vargs.emplace_back((double)(displayindex + 1));
+			vargs.emplace_back((double) displayindex);
 			vargs.emplace_back(txt, strlen(txt));
 
 			msg = new Message("displayrotated", vargs);
@@ -642,7 +642,7 @@ Message *Event::convertJoystickEvent(const SDL_Event &e) const
 			break;
 
 		vargs.emplace_back(joysticktype, stick);
-		vargs.emplace_back((double)(e.jbutton.button+1));
+		vargs.emplace_back((double) e.jbutton.button);
 		msg = new Message((e.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN) ?
 						  "joystickpressed" : "joystickreleased",
 						  vargs);
@@ -654,7 +654,7 @@ Message *Event::convertJoystickEvent(const SDL_Event &e) const
 				break;
 
 			vargs.emplace_back(joysticktype, stick);
-			vargs.emplace_back((double)(e.jaxis.axis+1));
+			vargs.emplace_back((double) e.jaxis.axis);
 			float value = joystick::Joystick::clampval(e.jaxis.value / 32768.0f);
 			vargs.emplace_back((double) value);
 			msg = new Message("joystickaxis", vargs);
@@ -669,7 +669,7 @@ Message *Event::convertJoystickEvent(const SDL_Event &e) const
 			break;
 
 		vargs.emplace_back(joysticktype, stick);
-		vargs.emplace_back((double)(e.jhat.hat+1));
+		vargs.emplace_back((double) e.jhat.hat);
 		vargs.emplace_back(txt, strlen(txt));
 		msg = new Message("joystickhat", vargs);
 		break;

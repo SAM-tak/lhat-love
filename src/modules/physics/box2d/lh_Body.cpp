@@ -421,7 +421,7 @@ static void lh_Body_getShapes(LhatMachine *machine, void *context, const LhatVal
 		for (size_t i = 0; i < shapes.size(); i++)
 		{
 			bool refused = false;
-			lhat_table_set(t, lhat_integer((int64_t) i + 1), pushShape(machine, shapes[i]), &refused);
+			lhat_table_set(t, lhat_integer((int64_t) i), pushShape(machine, shapes[i]), &refused);
 		}
 		answers[0] = table;
 		*answerCount = 1;
@@ -446,7 +446,7 @@ static void lh_Body_getJoints(LhatMachine *machine, void *context, const LhatVal
 		for (size_t i = 0; i < joints.size(); i++)
 		{
 			bool refused = false;
-			lhat_table_set(t, lhat_integer((int64_t) i + 1), pushJoint(machine, joints[i]), &refused);
+			lhat_table_set(t, lhat_integer((int64_t) i), pushJoint(machine, joints[i]), &refused);
 		}
 		answers[0] = table;
 		*answerCount = 1;

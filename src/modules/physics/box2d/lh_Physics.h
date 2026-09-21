@@ -96,7 +96,7 @@ LhatValue objectList(LhatMachine *machine, const std::vector<T *> &objects, bool
 	for (size_t i = 0; i < objects.size(); i++)
 	{
 		bool refused = false;
-		lhat_table_set(t, lhat_integer((int64_t) i + 1), lh::pushObject(machine, *physicsBinding.registry, objects[i]), &refused);
+		lhat_table_set(t, lhat_integer((int64_t) i), lh::pushObject(machine, *physicsBinding.registry, objects[i]), &refused);
 		if (release)
 			objects[i]->release();
 	}

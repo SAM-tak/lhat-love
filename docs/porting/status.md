@@ -26,6 +26,7 @@
 
 - **ラッパのキャッシュ** — machine ごとに 1 オブジェクト 1 ラッパ。最初はホスト側の map で組んで漸進 GC の下で不健全（physics の約半分が落ちた）と判り、lhat に弱参照キャッシュ（05 の 8.12）を入れてもらって載せ直した。physics 20/20、120 フレームの collected 1,582 → 1,164
 - **clang-cl が既定の処理系** — `build.ps1` が Ninja Multi-Config + VS 同梱 clang-cl で組む（`-Msvc` で cl.exe）。VM 負荷のループで約 36% 減。係留先はホストの根（`lhat_machine_host_root`。lhat `d7dc455` の共有表と `b10f3fe` の根に対応）
+- **添字は 0 から** — L^ 本体に合わせ、容器のキーと LÖVE の API 上の添字（Mesh 頂点・SpriteBatch id・Joystick の軸/ボタン/ハット・Contact の子など）を 0 起点に。マウスボタン・physics カテゴリ・`random` の範囲・ID は据え置き
 
 ## モジュール別
 

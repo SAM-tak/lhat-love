@@ -141,7 +141,7 @@ static void lh_getPreferredLocales(LhatMachine *machine, void *context, const Lh
 		LhatValue value = lhat_nil();
 		bool refused = false;
 		lh::makeString(machine, locales[i], &value);
-		lhat_table_set(t, lhat_integer((int64_t) i + 1), value, &refused);
+		lhat_table_set(t, lhat_integer((int64_t) i), value, &refused);
 	}
 	answers[0] = table;
 	*answerCount = 1;

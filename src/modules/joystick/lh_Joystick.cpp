@@ -70,7 +70,7 @@ static void lh_getJoysticks(LhatMachine *machine, void *context, const LhatValue
 	{
 		Joystick *stick = instance()->getJoystick(i);
 		bool refused = false;
-		lhat_table_set(t, lhat_integer(i + 1), lh::pushObject(machine, *binding.registry, stick), &refused);
+		lhat_table_set(t, lhat_integer(i), lh::pushObject(machine, *binding.registry, stick), &refused);
 	}
 	answers[0] = table;
 	*answerCount = 1;
@@ -156,13 +156,14 @@ static void lh_Joystick_getHatCount(LhatMachine *machine, void *context, const L
 	*answerCount = 1;
 }
 
-// getAxis(index) -- 1-based, as the Lua API.
+// getAxis(index) -- from 0, as L^ counts (lhat 5529b14). The Lua API
+// counted from 1; LOVE's own C++ always counted from 0, so no shift is left.
 static void lh_Joystick_getAxis(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
 								LhatValue *answers, int *answerCount)
 {
 	(void) context;
 	Joystick *j = checkJoystick(machine, arguments, count);
-	answers[0] = lhat_real(j != nullptr ? j->getAxis((int) lh::optNumber(arguments, count, 1, 1) - 1) : 0.0f);
+	answers[0] = lhat_real(j != nullptr ? j->getAxis((int) lh::optNumber(arguments, count, 1, 0)) : 0.0f);
 	*answerCount = 1;
 }
 
@@ -178,14 +179,15 @@ static void lh_Joystick_getHat(LhatMachine *machine, void *context, const LhatVa
 		return;
 	}
 	const char *name = "c";
-	Joystick::getConstant(j->getHat((int) lh::optNumber(arguments, count, 1, 1) - 1), name);
+	Joystick::getConstant(j->getHat((int) lh::optNumber(arguments, count, 1, 0)), name);
 	LhatValue out = lhat_nil();
 	lh::makeString(machine, name, &out);
 	answers[0] = out;
 	*answerCount = 1;
 }
 
-// isDown(button, ...) -- 1-based buttons; true if any is down.
+// isDown(button, ...) -- buttons counted from 0, as an index is in L^; true
+// if any is down.
 static void lh_Joystick_isDown(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
 							   LhatValue *answers, int *answerCount)
 {
@@ -199,7 +201,7 @@ static void lh_Joystick_isDown(LhatMachine *machine, void *context, const LhatVa
 	}
 	std::vector<int> buttons;
 	for (size_t i = 1; i < count; i++)
-		buttons.push_back((int) lh::optNumber(arguments, count, i, 1) - 1);
+		buttons.push_back((int) lh::optNumber(arguments, count, i, 0));
 	answers[0] = lhat_bool(j->isDown(buttons));
 	*answerCount = 1;
 }

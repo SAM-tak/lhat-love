@@ -196,7 +196,7 @@ LhatValue numberList(LhatMachine *machine, const std::vector<float> &values)
 	for (size_t i = 0; i < values.size(); i++)
 	{
 		bool refused = false;
-		lhat_table_set(t, lhat_integer((int64_t) i + 1), lhat_real(values[i]), &refused);
+		lhat_table_set(t, lhat_integer((int64_t) i), lhat_real(values[i]), &refused);
 	}
 	return table;
 }

@@ -183,12 +183,12 @@ static void lh_Shape_rayCast(LhatMachine *machine, void *context, const LhatValu
 		bool hit = false;
 		if (count >= 9)
 		{
-			int childIndex = (int) numberAt(args, count, 9, 1) - 1;
+			int childIndex = (int) numberAt(args, count, 9, 0);
 			hit = s->rayCast(x1, y1, x2, y2, maxFraction, numberAt(args, count, 6), numberAt(args, count, 7), numberAt(args, count, 8), childIndex, nx, ny, fraction);
 		}
 		else
 		{
-			int childIndex = (int) numberAt(args, count, 6, 1) - 1;
+			int childIndex = (int) numberAt(args, count, 6, 0);
 			hit = s->rayCast(x1, y1, x2, y2, maxFraction, childIndex, nx, ny, fraction);
 		}
 		answers[0] = lhat_bool(hit);
@@ -251,7 +251,9 @@ static void lh_Shape_getFilterData(LhatMachine *machine, void *context, const Lh
 	});
 }
 
-// Category and mask bits are spelled as 1-based bit indices, as in Lua.
+// Category and mask bits are spelled as LOVE's category numbers, 1 to 16.
+// Those are names, as a mouse button's number is, not positions in anything
+// L^ indexes -- so they did not move when L^ began counting from 0.
 static bool bitsOf(LhatMachine *machine, const LhatValue *args, size_t count, uint16 &out)
 {
 	std::bitset<16> b;

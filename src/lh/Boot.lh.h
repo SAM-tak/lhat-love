@@ -121,7 +121,7 @@ let^build = p^{
         previous := body
     }
 
-    let^tail = segments[segments.length^]
+    let^tail = segments[-1]
     if^tail fits^love.physics.Body {
         let^tx, ty = tail.getPosition()
         let^ball, ballShape = love.physics.newCircleBody(world, "dynamic", tx, ty + length * 1.8, 32)
@@ -135,7 +135,7 @@ let^build = p^{
     }
 
     # A push to one side so it is already swinging when the window opens.
-    let^first = segments[1]
+    let^first = segments[0]
     if^first fits^love.physics.Body { first.applyLinearImpulse(90, 0, true^) }
 
     clouds := {}
@@ -205,7 +205,7 @@ public^let^draw = p^{
     }
 
     let^font = love.graphics.getFont()
-    for^i from^1 to^segments.length^{
+    for^i from^0 to^segments.length^ - 1 {
         let^body = segments[i]
         let^letter = letters[i]
         if^body fits^love.physics.Body and^letter fits^string^{

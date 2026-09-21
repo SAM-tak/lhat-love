@@ -79,7 +79,9 @@ static void lh_setPosition(LhatMachine *machine, void *context, const LhatValue 
 	instance()->setPosition(lh::optNumber(arguments, count, 0, 0.0), lh::optNumber(arguments, count, 1, 0.0));
 }
 
-// isDown(button, ...): 1-based button numbers; true if any is down.
+// isDown(button, ...): LOVE's button numbers -- 1 primary, 2 secondary, 3
+// middle, SDL's own -- which name a button rather than index anything, so
+// they stay as they are while L^ counts from 0. True if any is down.
 static void lh_isDown(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
 					  LhatValue *answers, int *answerCount)
 {
