@@ -122,7 +122,8 @@ let^build = p^{
     }
 
     # The last segment. Not segments[-1]: a negative ordinal counts from the
-    # end for at/substr/slice^, but a subscript is a key, and -1 is none.
+    # end for the builtins that take one (at, substr, slice^, remove^,
+    # insert^), but a subscript is a key, and -1 is none.
     let^tail = segments[segments.length^ - 1]
     if^tail fits^love.physics.Body {
         let^tx, ty = tail.getPosition()
