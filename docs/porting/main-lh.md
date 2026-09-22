@@ -200,7 +200,7 @@ copy /b build-vmonly-shipping\love\Release\love.exe+mygame.love mygame.exe
 - `string.format` は無い。`$"x = {x}"` の補間を使う
 - Lua パターン（`string.match` 等）は無い。`s.find/replace/split` の組込か `std.regex`（実正規表現のサブセット。backref/lookaround 無し）
 - `table.sort` 等は組込メンバ `t.sort^()`（ハット必須）。比較関数は 3値（負/0/正）
-- `math.*` 相当は `std.math`（`import^ std.math` → `std.math.sin/cos/sqrt/atan2/lerp/min/max/...`）。**角度は度数法**。`love.graphics.rotate` などラジアンを取る API へは `std.math.rad(deg)` で変換。`abs/sign/clamp/floor/ceil/round` は `number^` のメンバ（`x.clamp(lo, hi)`）、定数は `number^.pi` / `tau` / `e` / `inf` / `nan`
+- `math.*` 相当は `std.math`（`import^ std.math` → `std.math.sin/cos/sqrt/atan2/lerp/min/max/...`）。**角度は弧度法**で、`love.graphics.rotate` など LÖVE の API と同じなのでそのまま渡せる（lhat `abe8c9b` まで度数法だった）。度で書きたい時だけ `std.math.rad(deg)` / `std.math.deg(rad)` で変換。`abs/sign/clamp/floor/ceil/round` は `number^` のメンバ（`x.clamp(lo, hi)`）、定数は `number^.pi` / `tau` / `e` / `inf` / `nan`
 - 公開したコールバックの型が違うと（例 `update = p^dt:string^`）起動前に診断で止まる
 - 実行時のコード読み込みは `love.filesystem.load(path)`（ゲームのファイルシステム経由）か `std.load.file/text`
 - `love.physics`: 型は `World` / `Body` / `Shape` / `Joint` / `Contact` の 5 つ。`CircleShape` や `RevoluteJoint` は無く、種別は `shape.getType()` / `joint.getType()` で見分け、種別のメンバ（`setRadius`、`setMotorSpeed`…）は合う種別にだけ呼べる（違う種別へ呼ぶと panic）。`world.setCallbacks(begin, end, presolve, postsolve)` は省いた分がクリアされる。`postsolve` は `(a, b, contact, n1, t1, n2, t2)` の 7 引数固定。`queryShapesInArea` / `rayCast` / `setContactFilter` のコールバックは `p^`（`f^` は外の変数へ代入できない）。座標の列は `getPoints()` → `t^{number^[]}` で受け、`body.getWorldPoints(shape.getPoints()...)...` のように展開して渡す

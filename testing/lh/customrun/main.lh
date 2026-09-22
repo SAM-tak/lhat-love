@@ -14,15 +14,15 @@ var^angle = 0
 
 public^let^update = p^dt:number^{
     frames += 1
-    angle += 90 * dt
-    if^frames = 1 { print($"std.math: sin(90) = {std.math.sin(90)}, sqrt(2) = {std.math.sqrt(2)}, pi = {number^.pi}, clamp = {(5).clamp(0, 3)}") }
+    angle += number^.pi / 2 * dt       # a quarter turn a second
+    if^frames = 1 { print($"std.math: sin(pi/2) = {std.math.sin(number^.pi / 2)}, sqrt(2) = {std.math.sqrt(2)}, pi = {number^.pi}, clamp = {(5).clamp(0, 3)}") }
 }
 
 public^let^draw = p^{
     love.graphics.push()
     love.graphics.translate(400, 300)
-    # std.math works in degrees; love.graphics.rotate takes radians.
-    love.graphics.rotate(std.math.rad(angle))
+    # Radians throughout: std.math and love.graphics agree (lhat abe8c9b).
+    love.graphics.rotate(angle)
     love.graphics.setColor(0.9, 0.8, 0.2)
     love.graphics.rectangle("fill", -40, -40, 80, 80)
     love.graphics.pop()

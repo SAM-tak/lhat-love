@@ -11,7 +11,7 @@ lhatove の Lua/LuaJIT を L^ (lhat) へ置き換えるにあたっての確定�
 3. **バインディング様式**: 型ごと hostdata。多態はシグネチャ union、コンストラクタ多重定義は再登録=オーバーロード
 4. **スクリプト形**: main.lh は `module^` + `public^let^` コールバック
 5. **メインループ**: L^ 側 run コルーチン。埋め込み Boot.lh が既定 `run`（yieldable `p^`、毎フレーム `yield^`）を提供、ゲームは `public^let^ run` でオーバーライド可。C++ は毎フレーム `lhat_machine_resume`
-6. **lhatstdlib**: 選別登録 — `error` / `debug` / `regex` / `load` / `math`（スカラー、度数法）/ `lton`（conf.lton とゲームのデータファイル）。`std.io`・`std.math.vector3` は非登録（love.filesystem が担当 / LÖVE API に用途なし）。`std.thread` / `std.async` は M5 で判断
+6. **lhatstdlib**: 選別登録 — `error` / `debug` / `regex` / `load` / `math`（スカラー、弧度法 — lhat `abe8c9b` で度数法から変わった）/ `lton`（conf.lton とゲームのデータファイル）。`std.io`・`std.math.vector3` は非登録（love.filesystem が担当 / LÖVE API に用途なし）。`std.thread` / `std.async` は M5 で判断
 
 ## 対応表
 
@@ -76,7 +76,7 @@ lhatove の Lua/LuaJIT を L^ (lhat) へ置き換えるにあたっての確定�
 - enum 文字列（draw mode、align）は `string^` + `getConstant` で実行時検証、不正なら `raise`
 - `src/lh/lh.h` に TypeRegistry（`love::Type* ↔ LhatHostDataTag*`、isa によるダウンキャスト）、`pushObject`/`checkObject`、`pushVariant`、`park` を実装済み（オブジェクト型の初使用は M2 の image/font）
 - 起動時に `lhat_unit_export_conforms` でゲームの公開コールバックの型を `callbacks[]` の署名と照合。違えば診断を出して起動しない（`testing/lh/badcallback`）
-- `std.math` を登録（度数法。`love.graphics.rotate` 等ラジアン API へは `std.math.rad(a)`）。`std.math.vector3` は非登録
+- `std.math` を登録（当時は度数法で、`love.graphics.rotate` 等ラジアン API へは `std.math.rad(a)` が要った。lhat `abe8c9b` で弧度法になり、LÖVE の API とそのまま行き来する）。`std.math.vector3` は非登録
 - 未対応: conf（当時は conf.lh、M6 後に conf.lton へ）、Window の settings テーブル、restart、nogame、`love.graphics` のオブジェクト類
 
 ## M2 で確定した実装事項

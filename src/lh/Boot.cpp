@@ -53,8 +53,8 @@
 #include "modules/graphics/Graphics.h"
 
 // lhatstdlib, the modules the porting plan admits into the game's program:
-// error kinds, std.debug, std.regex, std.load, std.math (scalar maths; its
-// angles are degrees, so love.graphics.rotate takes std.math.rad(a)) and
+// error kinds, std.debug, std.regex, std.load, std.math (scalar maths, in
+// radians as LOVE's API is, so an angle passes between them unconverted) and
 // std.lton, which is what conf.lton is written in and what a game reads its
 // own data files with. std.io stays out -- love.filesystem owns file access
 // -- and so does std.math.vector3, which LOVE's API has no use for.
