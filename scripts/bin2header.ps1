@@ -48,5 +48,5 @@ if ($line.Length -gt 0) { [void]$text.AppendLine($line.ToString()) }
 [void]$text.AppendLine()
 [void]$text.AppendLine("static const unsigned long ${Name}_length = $($bytes.Length)UL;")
 
-[System.IO.File]::WriteAllText((Join-Path (Get-Location) $Out), $text.ToString())
+[System.IO.File]::WriteAllText($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Out), $text.ToString())
 Write-Host "wrote $Out ($($bytes.Length) bytes as a C array)"

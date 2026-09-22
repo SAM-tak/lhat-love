@@ -14,8 +14,8 @@ var^angle = 0
 
 public^let^update = p^dt:number^{
     frames += 1
-    angle += number^.pi / 2 * dt       # a quarter turn a second
-    if^frames = 1 { print($"std.math: sin(pi/2) = {std.math.sin(number^.pi / 2)}, sqrt(2) = {std.math.sqrt(2)}, pi = {number^.pi}, clamp = {(5).clamp(0, 3)}") }
+    angle += std.math.pi / 2 * dt       # a quarter turn a second
+    if^frames = 1 { print($"std.math: sin(pi/2) = {std.math.sin(std.math.pi / 2)}, sqrt(2) = {std.math.sqrt(2)}, pi = {std.math.pi}, clamp = {(5).clamp(0, 3)}") }
 }
 
 public^let^draw = p^{

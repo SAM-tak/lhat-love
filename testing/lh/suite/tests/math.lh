@@ -68,7 +68,7 @@ public^let^run = p^{
     test.number("translate y", 20, ty)
     # std.math and LOVE both count angles in radians (lhat abe8c9b), so an
     # angle passes from one to the other as it is; rad is only for a degree.
-    let^quarter = number^.pi / 2
+    let^quarter = std.math.pi / 2
     test.near("std.math.sin takes radians", 1, std.math.sin(quarter), 0.000001)
     test.near("std.math.rad turns degrees into them", quarter, std.math.rad(90), 0.000001)
     t.rotate(quarter)
