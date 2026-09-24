@@ -77,7 +77,10 @@ if (Test-Path $loveLink) {
     if ($item.LinkType -ne "Junction") {
         throw "'$loveLink' exists and is not a junction. Remove it manually."
     }
-    if ((Resolve-Path $item.Target).Path -ne $repoRoot) {
+    # The target is a dead path once the repository has been moved or renamed,
+    # and Resolve-Path refuses those, so compare the spellings as they are.
+    $target = [System.IO.Path]::GetFullPath(@($item.Target)[0])
+    if ($target.TrimEnd('\') -ine $repoRoot.TrimEnd('\')) {
         Write-Host "Re-pointing junction $loveLink -> $repoRoot"
         [System.IO.Directory]::Delete($loveLink)
         New-Item -ItemType Junction -Path $loveLink -Target $repoRoot | Out-Null
