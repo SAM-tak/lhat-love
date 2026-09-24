@@ -1,10 +1,10 @@
 # AGENT.md
 
-このファイルは、lhatove リポジトリで AI アシスタントが守るべき実務ルールを定義します。
+このファイルは、lhat-love リポジトリで AI アシスタントが守るべき実務ルールを定義します。
 
 ## プロジェクト概要
 
-lhatove（lhat + löve）は [love2d/love](https://github.com/love2d/love) 12.0 のフォーク。
+LÔVE（L^ + LÖVE）は [love2d/love](https://github.com/love2d/love) 12.0 のフォーク。
 スクリプト言語を Lua/LuaJIT から自作言語 [L^ (lhat)](https://github.com/SAM-tak/lhat) に置き換える。
 
 - エンジン本体: C++17 / CMake
@@ -66,7 +66,7 @@ L^ ランタイムの場所は CMake オプション `LHATOVE_LHAT_DIR`（デフ
 
 `--debug-names` を添えるとローカル名と捕捉名（09 の 4 章）が残る。行番号は**どちらでも残る**ので traceback は常に読める。既定は落とす。
 
-**エンジン側の生成物を作り直すのは、登録か埋め込みユニットを変えた時だけ**（3 つとも git に入っている）:
+**エンジン側の生成物を作り直すのは、登録か埋め込みユニットを変えた時と、lhat の `LHAT_VERSION` が変わった時**（3 つとも git に入っている）。`scripts/regen-generated.ps1`（`-Lovec` に full 版の lovec、`-Out` に出力先）が下の 5 コマンドを 1 本にしてある:
 
 ```powershell
 .\build\love\Release\lovec.exe --dump-signatures sigs.bin testing\lh\hello
@@ -78,9 +78,20 @@ L^ ランタイムの場所は CMake オプション `LHATOVE_LHAT_DIR`（デフ
 .\scripts\bin2header.ps1 -In emb\main.lh.bin -Out src\lh\NogameBinary.h -Name lh_nogame_binary
 ```
 
-署名表は登録と 1 対 1 で、噛み合わなければ VM 版が起動時に `the signature table this build carries does not fit its registrations` と言う。埋め込みユニットは VM 版が自分で持つので、`--compile-game` は書き出さない。
+署名表は登録と 1 対 1 で、噛み合わなければ VM 版が起動時に `the signature table this build carries does not fit its registrations` と言う。**版数でも同じ**: 表とユニットのヘッダは `LHAT_VERSION` などの指紋を持つので、署名の本体が同一でも、別の版で作った物は VM 版が拒む（実測: lhat 0.3.3 で作った表を 0.3.6 の VM 版が拒否。差は指紋 11 バイトと版数文字列だけ）。埋め込みユニットは VM 版が自分で持つので、`--compile-game` は書き出さない。
 
 **fused はビルド構成ではない。** 同じ実行ファイルに `.love` を連結すると fused になる（`copy /b love.exe+game.love mygame.exe`）ので、配布物の土台に何を使うかは -Shipping / -VmOnly で選ぶ。実行時の fused 判定は別にあり、そちらは `--dap` を捨てる（両方効く）。`.love` は縮むとは限らない — PhysFS の zip は deflate を展開するので、既に密なバイナリユニットは圧縮が効かない（realgame 実測 4,496 → 5,862 バイト）。
+
+### CI とリリース（GitHub Actions）
+
+Windows のみ。公開リポジトリなので標準ランナーは無料。`.github/workflows/` の `ci.yml`（main への push と PR）と `release.yml`（`v*` タグ。手動起動はビルドと検証だけで公開しない）が `build.yml` を呼ぶ。
+
+- `build.yml` は 1 ジョブで直列。**RelWithDebInfo（full）** をビルド → `scripts/package.ps1` で配布形にして、そのパッケージで suite を走らせる → suite を `--compile-game` → 生成物を再生成（下記）→ **VmOnly-Shipping** をビルド → そのパッケージでコンパイル済み suite を走らせる。VM 版は full の成果物を要るので並列にできない
+- lhat と megasource は**先端**を取る。lhat の版が進むとコミット済みの生成物が古くなる。CI は `regen-generated.ps1` で作り直してから VM 版を組み、コミット済みと違えば警告を出す（直して commit する）。取ったコミットは各パッケージの `build-info.txt` に入る
+- Release に載るのは `lhat-love-<タグ>-win-x64-relwithdebinfo.zip`（シンボルは別の `-pdb.zip`）と `-vmonly-shipping.zip`
+- ヘッドレスの GL は Mesa（`.github/actions/mesa`、upstream LÖVE の CI と同じ物）。音は `testing/resources/alsoft.conf`（wave 出力）で、**cwd に `output.wav` を書く** — 手元で `ALSOFT_CONF` を指して走らせると出る
+- `scripts/package.ps1`: `cmake --install` は megasource の最上位規則を通り、誰もリンクしない LuaJIT の `lua51.dll` を要求して落ちる。だから love の `cmake_install.cmake` を直接走らせ、install 規則に無い `OpenAL32.dll` を足し、lhat の `include/` `lib/` を除く。エンジンの DLL 名は構成で違う（Debug / Release が `love.dll`、RelWithDebInfo が `liblove.dll`）
+- **まだ Actions では走らせていない**（手元で各段を実測しただけ）。初回の実行で見るべきは、ランナーに clang-cl と Ninja があるか、パスの長さ、Mesa 上で suite が通るか
 
 ## 移植規約
 

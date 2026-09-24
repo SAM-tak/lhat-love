@@ -1,90 +1,104 @@
 # LÔVE
 
-LÔVE is an *awesome* framework you can use to make 2D games in L^. It's free, open-source, and works on Windows, ~~macOS~~, Linux, ~~Android, and iOS~~.
+LÔVE is a fork of [LÖVE](https://github.com/love2d/love) 12.0, a framework for making 2D games, that scripts them in [L^](https://github.com/SAM-tak/lhat) instead of Lua. The engine underneath is still LÖVE's C++. Lua and LuaJIT are gone, replaced by L^, an embeddable, statically type-checked bytecode language.
+
+> [!NOTE]
+> Not ready for real use yet. Compatibility with upstream LÖVE and with existing Lua games is not a goal, and anything may change without notice.
+
+## Differences from LÖVE
+
+- A game is `main.lh` (and optionally `conf.lton`), not `main.lua` / `conf.lua`. See [main-lh.md][mainlh].
+- `love.thread` is gone. Threads, channels and async come from L^'s standard library (`std.thread`, `std.channel`, `std.async`).
+- LuaJIT, lua53, luasocket, enet and luahttps are gone, so there are no networking modules.
+- Windows is the only platform for now.
 
 ## Documentation
 
-We use our [wiki][wiki] for documentation.
-If you need further help, feel free to ask on our [forums][forums], our [Discord server][discord], or our [subreddit][subreddit].
+The design notes are in `docs/porting/`, in Japanese:
 
-## Repository
-
-We use the 'main' branch for development of the next major release, and therefore it should not be considered stable.
-
-There are also branches for currently released major versions, which may have fixes and changes meant for upcoming patch releases within that major version.
-
-We tag all our releases (since we started using mercurial and git), and have binary downloads available for them.
-
-Experimental changes are sometimes developed in a separate [love-experiments][love-experiments] repository.
+- [lua-to-lhat.md][design] — design decisions of the port
+- [status.md][status] — which modules are ported
+- [main-lh.md][mainlh] — how to write a game
+- [AGENT.md][agent] — build variants and porting conventions
 
 ## Builds
 
-Files for releases are in the [releases][releases] section on GitHub. [The site][site] has links to files and additional platform content for the latest release.
+GitHub Actions builds every push and pull request, and attaches builds to each release. Files for releases are in the [releases][releases] section. A release carries two Windows builds:
 
-There are also unstable/nightly builds:
+- `relwithdebinfo` — the full engine, with the L^ front end and the debugger. Its symbols are in a separate archive. This is what games are developed, run and compiled with.
+- `vmonly-shipping` — the runtime a compiled game ships on: no front end, no debugger. See [AGENT.md][agent] for how a game is compiled for it.
 
-- Builds for some platforms are automatically created after each commit and are available through GitHub's CI interfaces.
-- For ubuntu linux they are in [ppa:bartbes/love-unstable][unstableppa]
-- For arch linux there's [love-git][aur] in the AUR.
+The builds of a push are also kept for 14 days as artifacts of its [Actions run][workflows].
+
+## Running
+
+```powershell
+.\build\love\Release\lovec.exe path\to\game   # a game directory or a .love file
+.\build\love\Release\lovec.exe                # no argument: the nogame screen
+```
 
 ## Test Suite
 
-The test suite in `testing/` covers all the LÖVE APIs, and tests them the same way developers use them. You can view current test coverage from any [action][workflows].  
-You can run the suite locally like you would run a normal LÖVE project, e.g.:  
-`love testing`
+The L^ test suite is `testing/lh/suite`. It covers every module that has been ported and runs in a single frame:
 
-See the [readme][testsuite] in the testing folder for more info.  
+```powershell
+.\build\love\Release\lovec.exe testing\lh\suite
+```
 
-## Contributing
+It reports how many checks passed, and exits with 0 if all of them did and 1 if not. The other games in `testing/lh/` are smoke tests with their own expected exit codes, which [AGENT.md][agent] lists.
 
-The best places to contribute are through the issue tracker and the official Discord server.
-
-For code contributions, pull requests and patches are welcome. Be sure to read the [source code style guide][codestyle].
-Changes and new features typically get discussed in the issue tracker or on Discord or the forums before a pull request is made.
-
-> [!NOTE]
-> Pull requests, bug reports, and other contributions made with LLM / generative AI technology will not be accepted.
+`testing/*.lua` and the readme in `testing/` belong to upstream LÖVE's Lua test suite, kept as the source the L^ suite was ported from. They do not run here.
 
 ## Compilation
 
 ### Windows
 
-Follow the instructions at the [megasource][megasource] repository page.
+You need:
 
-### *nix
+- Git
+- Visual Studio with the C++ toolchain and the CMake tools, plus the "C++ Clang Compiler for Windows" component (not needed with `-Msvc`)
+- A checkout of [L^][lhat] next to this repository, at `..\lhat`
 
-Because in-tree builds are not allowed, the Makefiles needs to be generated in a separate build directory. In this example, folder named `build` is used:
-
-```sh
-> $ cmake -B build -S. --install-prefix $PWD/prefix # this will create the directory `build/`.
-> $ cmake --build build --target install -j$(nproc) # this will build with all cores and put the files in `prefix/`.
+```powershell
+git clone https://github.com/SAM-tak/lhat ..\lhat   # once
+.\scripts\build.ps1
 ```
 
-> [!NOTE]
-> CMake 3.15 and earlier doesn't support `--install-prefix`. In that case, use `-DCMAKE_INSTALL_PREFIX=` instead.
+The script clones [megasource][megasource] (LÖVE's bundle of Windows dependencies) next to this repository if it is missing, links this repository into it as `libs\love`, then configures and builds with clang-cl and Ninja. The executables end up in `build\love\Release\`.
+
+Options:
+
+- `-Config Debug` — a Debug build.
+- `-Shipping` — for distribution: no L^ debugger. Builds into `build-shipping`.
+- `-VmOnly` — no L^ front end. Games have to be compiled first with `lovec --compile-game`. Builds into `build-vmonly`.
+- `-Msvc` — cl.exe instead of clang-cl. Builds into `build-msvc`.
+
+`-Shipping` and `-VmOnly` can be combined. [AGENT.md][agent] has the details, including how to compile a game for a VM-only build.
+
+### Linux and macOS
+
+Not a target for now. Nothing has been built or tested outside Windows.
 
 ## Dependencies
 
+- [L^][lhat] (`..\lhat`, built together with the engine)
 - SDL3
-- OpenGL 3.3+ / OpenGL ES 3.0+ / Vulkan / Metal
+- OpenGL 3.3+ / OpenGL ES 3.0+ / Vulkan
 - OpenAL
 - FreeType
-- harfbuzz
+- HarfBuzz
 - ModPlug
-- Vorbisfile
+- Vorbisfile / Ogg
 - Theora
-- L^
+- zlib
 
-[site]: https://love2d.org
-[wiki]: https://love2d.org/wiki
-[forums]: https://love2d.org/forums
-[discord]: https://discord.gg/rhUets9
-[subreddit]: https://www.reddit.com/r/love2d
+On Windows, everything except L^ comes from megasource.
+
+[releases]: https://github.com/SAM-tak/lhat-love/releases
+[workflows]: https://github.com/SAM-tak/lhat-love/actions
+[lhat]: https://github.com/SAM-tak/lhat
 [megasource]: https://github.com/love2d/megasource
-[unstableppa]: https://launchpad.net/~bartbes/+archive/love-unstable
-[aur]: https://aur.archlinux.org/packages/love-git
-[love-experiments]: https://github.com/slime73/love-experiments
-[codestyle]: https://love2d.org/wiki/Code_Style
-[releases]: https://github.com/love2d/love/releases
-[testsuite]: https://github.com/love2d/love/tree/main/testing
-[workflows]: https://github.com/love2d/love/actions/workflows/main.yml?query=branch%3Amain
+[agent]: AGENT.md
+[design]: docs/porting/lua-to-lhat.md
+[status]: docs/porting/status.md
+[mainlh]: docs/porting/main-lh.md

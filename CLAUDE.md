@@ -1,4 +1,4 @@
-# lhatove — LÖVE with L^
+# LÔVE — LÖVE with L^
 
 プロジェクト指示は @AGENT.md を参照。
 
