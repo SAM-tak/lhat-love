@@ -28,12 +28,12 @@ var^awaited = false^
 var^scale = 3
 
 public^let^load = p^{
-    let^jobs = try^std.channel.named("jobs")
-    let^results = try^std.channel.named("results")
+    with^jobs = try^std.channel.named("jobs")
+    with^results = try^std.channel.named("results")
 
     # A worker that closes over the unit's own `scale`: carry takes a
     # snapshot of it, so the far side reads 3 whatever happens here.
-    let^worker = try^std.thread.spawn(p^... {
+    with^worker = try^std.thread.spawn(p^... {
         let^inbox = try^std.channel.named("jobs")
         let^outbox = try^std.channel.named("results")
         var^name = "worker"
@@ -59,7 +59,7 @@ public^let^load = p^{
     }, "alpha")
 
     # A closure crosses as its proto plus a snapshot of what it captured.
-    let^echo = try^std.thread.spawn(p^... {
+    with^echo = try^std.thread.spawn(p^... {
         let^outbox = try^std.channel.named("results")
         let^f = ...[0]
         if^f fits^p^number^-> number^; {
@@ -70,31 +70,30 @@ public^let^load = p^{
         return^nil^
     }, f^n:number^-> number^{ return^n + 22 })
 
-    let^broken = try^std.thread.spawn(p^... { panic^"boom from a thread" })
+    with^broken = try^std.thread.spawn(p^... { panic^"boom from a thread" })
 
-    try^jobs.push(7)
-    try^jobs.push("hello")
-    try^jobs.push({ x = 1.5, y = 2.5 })
-    try^jobs.supply("stop")
+    {
+        try^jobs.push(7)
+        try^jobs.push("hello")
+        try^jobs.push({ x = 1.5, y = 2.5 })
+        try^jobs.supply("stop")
 
-    # 15.14: the end of a body completes an std.async wait, so this parks
-    # on the worker rather than asking done() over and over.
-    let^ticket = worker.awaitable()
-    repeat^{
-        let^ready = std.async.wait(2)
-        if^ready fits^nil^{ break^}
-        if^ready = ticket { awaited := true^ break^}
+        # 15.14: the end of a body completes an std.async wait, so this parks
+        # on the worker rather than asking done() over and over.
+        let^ticket = worker.awaitable()
+        repeat^{
+            let^ready = std.async.wait(2)
+            if^ready fits^nil^{ break^}
+            if^ready = ticket { awaited := true^ break^}
+        }
+        let^said = try^worker.join()
+        if^said fits^string^{ received.push^(said) }
+        echo.join()
+        # here the error IS what is being asked for, so the union stands
+        if^broken.join() fits^std.thread.ThreadError.BadResult {
+            errorText := "joined a body that panicked"
+        }
     }
-    let^said = try^worker.join()
-    if^said fits^string^{ received.push^(said) }
-    echo.join()
-    # here the error IS what is being asked for, so the union stands
-    if^broken.join() fits^std.thread.ThreadError.BadResult {
-        errorText := "joined a body that panicked"
-    }
-    worker.dispose()
-    echo.dispose()
-    broken.dispose()
 catch^:
     print($"threads could not start: {it^.message}")
     love.event.quit(1)
