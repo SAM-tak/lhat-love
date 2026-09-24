@@ -1,0 +1,75 @@
+# Builds the binaries a release consists of, and attaches them to it.
+#
+# A release carries two builds of the same source revision:
+#
+#   relwithdebinfo    the full engine: L^ front end and debugger, with
+#                     symbols. What a game is developed and compiled with.
+#   vmonly-shipping   the runtime a compiled game ships on: no front end, no
+#                     debugger.
+#
+# Only what passed goes out: build.yml runs the test suite on both, and the
+# publish job does not start unless it did.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  # Buildable without a tag, to check the workflow itself. Nothing is
+  # published then: the publish job is what a tag adds.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+
+  publish:
+    needs: build
+    # A tag is what makes this a release; workflow_dispatch only proves the
+    # build still works.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # gh release create, on the tag that started this
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: package
+          path: dist
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: build-info
+          path: info
+
+      # The archives are named for what they are; the release they are
+      # attached to names the version, and a download loses that.
+      - name: Name the archives for the tag
+        run: |
+          cd dist
+          for f in lhat-love-*.zip; do
+            mv "$f" "lhat-love-${GITHUB_REF_NAME}-${f#lhat-love-}"
+          done
+          ls -l
+
+      # The inputs are other repositories' tips at the time of the build, so
+      # the revisions are what makes this release reproducible.
+      - name: Attach to the release
+        run: |
+          {
+            echo '```'
+            cat info/build-info.txt
+            echo '```'
+          } > notes.md
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" --generate-notes \
+              --notes-file notes.md dist/*
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}

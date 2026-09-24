@@ -1,0 +1,134 @@
+# Builds lhat-love for Windows in the two flavours a release carries, and
+# proves that what it built runs the L^ test suite. ci.yml and release.yml
+# call it; it does nothing on its own.
+#
+#   relwithdebinfo    the full engine: L^ front end and debugger, with
+#                     symbols. It compiles the suite, and it makes the files
+#                     the other flavour needs (see below).
+#   vmonly-shipping   the runtime a compiled game ships on: no front end, no
+#                     debugger. It runs the suite the full build compiled.
+#
+# One job, one after the other, because the second build needs what the first
+# one makes. A VM-only engine carries the signature table and the embedded
+# units as bytes (src/lh/*.h, checked in), and those are stamped with lhat's
+# version: an engine built from ones made under another version refuses to
+# start. lhat is built from its tip, so its version can be ahead of what is
+# checked in. The full build regenerates them, the VM-only one is built from
+# those, and a run that finds the checked-in ones stale says so.
+#
+# The inputs are other repositories' tips: L^ is built from the tree next to
+# this one (LHATOVE_LHAT_DIR, ../lhat) and megasource supplies the Windows
+# dependencies. Their revisions go into the packages.
+name: build
+
+on:
+  workflow_call:
+
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 120
+    env:
+      ALSOFT_CONF: ${{ github.workspace }}\lhat-love\testing\resources\alsoft.conf
+    steps:
+      # scripts/build.ps1 looks for lhat and megasource beside the repository
+      # it is in, so the three sit side by side in the workspace.
+      - uses: actions/checkout@v5
+        with:
+          path: lhat-love
+
+      - uses: actions/checkout@v5
+        with:
+          repository: SAM-tak/lhat
+          path: lhat
+
+      # build.ps1 clones megasource when it is missing; a checkout does the
+      # same and is one less thing for the script to reach the network for.
+      - uses: actions/checkout@v5
+        with:
+          repository: love2d/megasource
+          path: megasource
+
+      - name: Build relwithdebinfo
+        shell: pwsh
+        working-directory: lhat-love
+        run: .\scripts\build.ps1 -Config RelWithDebInfo
+
+      - name: Package relwithdebinfo
+        shell: pwsh
+        run: .\lhat-love\scripts\package.ps1 -BuildDir lhat-love\build -Config RelWithDebInfo -Out dist\relwithdebinfo -Symbols dist\relwithdebinfo-pdb
+
+      # Only what passed goes out, and it is the package that runs the suite,
+      # not the build tree: a DLL the installer forgets shows up here.
+      - uses: ./lhat-love/.github/actions/mesa
+
+      - name: Test relwithdebinfo
+        shell: pwsh
+        timeout-minutes: 10
+        run: dist\relwithdebinfo\lovec.exe lhat-love\testing\lh\suite
+
+      # The runtime cannot read text units, so the suite it runs is compiled
+      # by the full build.
+      - name: Compile the suite
+        shell: pwsh
+        run: dist\relwithdebinfo\lovec.exe --compile-game suite-compiled lhat-love\testing\lh\suite
+
+      - name: Regenerate what the VM-only engine carries
+        shell: pwsh
+        run: |
+          .\lhat-love\scripts\regen-generated.ps1 -Lovec dist\relwithdebinfo\lovec.exe
+          git -C lhat-love diff --quiet -- src/lh
+          if ($LASTEXITCODE -ne 0) {
+            git -C lhat-love diff --stat -- src/lh
+            Write-Host "::warning title=Generated files are stale::src/lh/Signatures.h, BootBinary.h and NogameBinary.h are not what this lhat produces. Run scripts/regen-generated.ps1 and commit the result."
+          }
+          exit 0
+
+      - name: Build vmonly-shipping
+        shell: pwsh
+        working-directory: lhat-love
+        run: .\scripts\build.ps1 -VmOnly -Shipping
+
+      - name: Package vmonly-shipping
+        shell: pwsh
+        run: .\lhat-love\scripts\package.ps1 -BuildDir lhat-love\build-vmonly-shipping -Config Release -Out dist\vmonly-shipping
+
+      - name: Test vmonly-shipping
+        shell: pwsh
+        timeout-minutes: 10
+        run: dist\vmonly-shipping\lovec.exe suite-compiled
+
+      # The inputs are other repositories' tips at the time of the build, so
+      # the revisions are what makes a package reproducible.
+      - name: Record the revisions
+        shell: pwsh
+        run: |
+          @(
+            "lhat-love   ${{ github.sha }}"
+            "lhat        $(git -C lhat rev-parse HEAD)"
+            "megasource  $(git -C megasource rev-parse HEAD)"
+          ) | Set-Content build-info.txt
+          Copy-Item build-info.txt dist\relwithdebinfo
+          Copy-Item build-info.txt dist\vmonly-shipping
+
+      - name: Archive
+        shell: pwsh
+        run: |
+          foreach ($name in 'relwithdebinfo', 'vmonly-shipping', 'relwithdebinfo-pdb') {
+            Push-Location dist\$name
+            7z a -tzip ..\..\lhat-love-win-x64-$name.zip .
+            Pop-Location
+          }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package
+          path: lhat-love-win-x64-*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: build-info
+          path: build-info.txt
+          retention-days: 14

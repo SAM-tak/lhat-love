@@ -1,0 +1,21 @@
+# Builds lhat-love on every push to main and on every pull request, and runs
+# the L^ test suite against what it built. The building is build.yml's.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push on the same branch supersedes the run before it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
