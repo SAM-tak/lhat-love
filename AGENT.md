@@ -4,7 +4,7 @@
 
 ## プロジェクト概要
 
-LÔVE（L^ + LÖVE）は [love2d/love](https://github.com/love2d/love) 12.0 のフォーク。
+LÔVE（lhatove）は [love2d/love](https://github.com/love2d/love) 12.0 のフォーク。
 スクリプト言語を Lua/LuaJIT から自作言語 [L^ (lhat)](https://github.com/SAM-tak/lhat) に置き換える。
 
 - エンジン本体: C++17 / CMake
