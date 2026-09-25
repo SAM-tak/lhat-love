@@ -154,7 +154,9 @@ static void lh_setShader(LhatMachine *machine, void *context, const LhatValue *a
 	(void) context;
 	if (count == 0)
 	{
-		instance()->setShader();
+		lh::guard(machine, [&]() {
+			instance()->setShader();
+		});
 		return;
 	}
 	Shader *shader = lh::checkObject<Shader>(args[0], *binding.registry);
@@ -447,8 +449,9 @@ static void lh_setWireframe(LhatMachine *machine, void *context, const LhatValue
 							LhatValue *answers, int *answerCount)
 {
 	(void) context;
-	(void) machine;
-	instance()->setWireframe(lh::optBool(args, count, 0, false));
+	lh::guard(machine, [&]() {
+		instance()->setWireframe(lh::optBool(args, count, 0, false));
+	});
 }
 
 static void lh_isWireframe(LhatMachine *machine, void *context, const LhatValue *args, size_t count,

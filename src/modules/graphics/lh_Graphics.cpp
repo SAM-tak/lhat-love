@@ -363,9 +363,10 @@ static void lh_points(LhatMachine *machine, void *context, const LhatValue *argu
 static void lh_setPointSize(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
 							LhatValue *answers, int *answerCount)
 {
-	(void) machine;
 	(void) context;
-	instance()->setPointSize((float) lh::optNumber(arguments, count, 0, 1.0));
+	lh::guard(machine, [&]() {
+		instance()->setPointSize((float) lh::optNumber(arguments, count, 0, 1.0));
+	});
 }
 
 // ---------------------------------------------------------------------------

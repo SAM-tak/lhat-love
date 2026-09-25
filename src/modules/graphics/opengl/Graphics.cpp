@@ -1632,7 +1632,7 @@ void Graphics::initCapabilities()
 	capabilities.features[FEATURE_PIXEL_SHADER_HIGHP] = true;
 	capabilities.features[FEATURE_SHADER_DERIVATIVES] = true;
 	capabilities.features[FEATURE_GLSL3] = true;
-	capabilities.features[FEATURE_GLSL4] = GLAD_ES_VERSION_3_1 || (gl.isCoreProfile() && GLAD_VERSION_4_3);
+	capabilities.features[FEATURE_GLSL4] = GLAD_ES_VERSION_3_2 || (gl.isCoreProfile() && GLAD_VERSION_4_3);
 	capabilities.features[FEATURE_INSTANCING] = true;
 	capabilities.features[FEATURE_TEXEL_BUFFER] = gl.isBufferUsageSupported(BUFFERUSAGE_TEXEL);
 	capabilities.features[FEATURE_COPY_TEXTURE_TO_BUFFER] = gl.isCopyTextureToBufferSupported();
