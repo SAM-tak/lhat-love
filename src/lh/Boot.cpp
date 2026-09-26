@@ -65,6 +65,7 @@
 #include "stdlib/load.h"
 #include "stdlib/lton.h"
 #include "stdlib/math.h"
+#include "stdlib/mathvector2.h"
 #include "stdlib/regex.h"
 #include "stdlib/thread.h"
 
@@ -171,6 +172,10 @@ static bool registerStdlib(LhatProgram *program)
 		|| !lhatstdlib_load_register(program)
 		|| !lhatstdlib_lton_register(program)
 		|| !lhatstdlib_math_register(program)
+		// A 2D vector for the game to use. love.* keeps upstream's x, y pairs,
+		// so a Vector2 is taken apart at the call and put together from the
+		// answer, as hump.vector is in Lua.
+		|| !lhatstdlib_mathvector2_register(program)
 		// Threads and channels are the language's, not love's: one machine per
 		// worker off the same program, and a queue between them that carries
 		// what carry.h carries -- LOVE objects included, since every object

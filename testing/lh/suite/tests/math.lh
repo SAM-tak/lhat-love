@@ -4,6 +4,7 @@ module^suite.tests.math
 
 import^love.math
 import^std.math
+import^std.math.vector2
 
 let^test = require^"../lib/test.lh"
 
@@ -81,4 +82,15 @@ public^let^run = p^{
     t.reset()
     let^zx, zy = t.transformPoint(3, 4)
     test.isTrue("reset clears the transform", zx = 3 and^zy = 4)
+
+    # std.math.vector2 is the game's; love.* takes and answers x, y pairs as
+    # upstream does, so a Vector2 goes in by its fields and comes back built.
+    let^v = std.math.vector2.new(3, 4)
+    test.near("Vector2 length", 5, v.length(), 0.000001)
+    let^w = v + std.math.vector2.new(1, 2)
+    test.number("Vector2 + x", 4, w.x)
+    test.number("Vector2 + y", 6, w.y)
+    let^px, py = t.transformPoint(w.x, w.y)
+    let^back = std.math.vector2.new(px, py)
+    test.isTrue("a Vector2 crosses love.* as its fields", back.x = 4 and^back.y = 6)
 }
