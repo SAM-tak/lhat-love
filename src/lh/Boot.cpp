@@ -805,6 +805,19 @@ static std::string withSlashes(std::string path)
 	return path;
 }
 
+// Editor paths follow the host platform's comparison rules. In particular,
+// VS Code may lowercase a Windows drive letter even when PhysFS does not.
+// Both inputs already use forward slashes; keep the unit's original spelling
+// when returning it to the adapter, which compares mapped unit names exactly.
+static bool sameEditorPath(const std::string &a, const std::string &b)
+{
+#ifdef LOVE_WINDOWS
+	return _stricmp(a.c_str(), b.c_str()) == 0;
+#else
+	return a == b;
+#endif
+}
+
 // Whether the mount joined with the unit names a file the editor could
 // open. It does for a directory mount; for a .love or a fused executable
 // PhysFS answers the archive itself, and nothing on disk is the unit.
@@ -836,12 +849,12 @@ static bool toUnit(void *context, const char *editorPath, char *out, size_t capa
 		std::string unit = path;
 		// The editor may hand over the unit spelling itself, which is what a
 		// bare "main.lh" in a launch configuration means.
-		if (unit == wanted)
+		if (sameEditorPath(unit, wanted))
 			return copyOut(unit, out, capacity);
 		std::string mount = withSlashes(mountOf(unit));
 		if (getenv("LHATOVE_TRACE") != nullptr)
 			fprintf(stderr, "[dap] unit=%s mount=%s want=%s\n", unit.c_str(), mount.c_str(), wanted.c_str());
-		if (!mount.empty() && mount + "/" + unit == wanted)
+		if (!mount.empty() && sameEditorPath(mount + "/" + unit, wanted))
 			return copyOut(unit, out, capacity);
 	}
 	return false;
