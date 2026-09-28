@@ -130,6 +130,21 @@ struct Context
 	bool member(const char *module, const char *type, const char *name, const char *signature, LhatHostFn fn, void *ctx) const;
 	bool global(const char *name, const char *signature, LhatHostFn fn, void *ctx) const;
 	bool bind(const char *name, const char *member) const;
+	bool enumType(const char *module, const char *name, const std::vector<std::string> &members) const;
+	template <typename T>
+	bool enumType(const char *module, const char *name, T end, bool (*constant)(T, const char *&)) const
+	{
+		if (!types())
+			return true;
+		std::vector<std::string> members;
+		for (int i = 0; i < (int) end; ++i)
+		{
+			const char *spelling = nullptr;
+			if (constant((T) i, spelling))
+				members.emplace_back(spelling);
+		}
+		return enumType(module, name, members);
+	}
 
 	// 04 の 2.4: the module's own error declaration. Call in the TYPES phase,
 	// before any signature names it. `variants` is the list in order and
@@ -198,6 +213,9 @@ public:
 
 	// Every diagnostic the program and its units recorded, one per line.
 	std::string diagnostics() const;
+	// Compiler failures include the unit, source position and reason.
+	// VM creation / installation failures have their own phase-specific text.
+	std::string compileDiagnostics() const;
 
 	// lhat_program_compile + machine creation + install. False on failure;
 	// compile may be called again after later checks (incremental).
@@ -219,6 +237,7 @@ private:
 	LhatMachine *machine_;
 	StrongRef<ParkingLot> lot_;
 	std::string failedRegistrar_;
+	std::string compileError_;
 };
 
 // ---------------------------------------------------------------------------
@@ -352,6 +371,13 @@ bool makeString(LhatMachine *machine, const std::string &text, LhatValue *out);
 
 // The string a value holds, or nullptr when it is not a string.
 const char *stringOf(LhatValue value, size_t *length = nullptr);
+
+// Enum values retain their declaration identity at the host boundary. The
+// spelling is only used internally to consult LOVE's existing constant maps.
+const char *enumName(LhatMachine *machine, LhatValue value, const char *module, const char *type);
+std::string optEnum(LhatMachine *machine, const LhatValue *args, size_t count, size_t index,
+                    const char *module, const char *type, const std::string &fallback);
+LhatValue pushEnum(LhatMachine *machine, const char *module, const char *type, const char *name);
 
 // Argument readers. A missing or mistyped argument answers the fallback; the
 // checker has already refused a call whose declared arguments are wrong, so

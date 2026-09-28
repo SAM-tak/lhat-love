@@ -232,8 +232,8 @@ static void lh_Video_setFilter(LhatMachine *machine, void *context, const LhatVa
 	(void) context;
 	VIDEO_SELF();
 	SamplerState s = video->getSamplerState();
-	std::string minstr = lh::optString(args, count, 1, "linear");
-	std::string magstr = lh::optString(args, count, 2, minstr);
+	std::string minstr = lh::optEnum(machine, args, count, 1, "love.graphics", "FilterMode", "linear");
+	std::string magstr = lh::optEnum(machine, args, count, 2, "love.graphics", "FilterMode", minstr);
 	if (!SamplerState::getConstant(minstr.c_str(), s.minFilter))
 	{
 		lh::raise(machine, "Invalid filter mode: " + minstr);
@@ -272,8 +272,8 @@ bool lhGraphicsVideo(lh::Context &ctx)
 		&& ctx.member(m, V, "setSource", "p^self^;", lh_Video_setSource, nullptr)
 		&& ctx.member(m, V, "setSource", "p^self^, love.audio.Source;", lh_Video_setSource, nullptr)
 		&& ctx.member(m, V, "getFilename", "f^self^ -> string^;", lh_Video_getFilename, nullptr)
-		&& ctx.member(m, V, "setFilter", "p^self^, string^;", lh_Video_setFilter, nullptr)
-		&& ctx.member(m, V, "setFilter", "p^self^, string^, string^;", lh_Video_setFilter, nullptr);
+		&& ctx.member(m, V, "setFilter", "p^self^, love.graphics.FilterMode;", lh_Video_setFilter, nullptr)
+		&& ctx.member(m, V, "setFilter", "p^self^, love.graphics.FilterMode, love.graphics.FilterMode;", lh_Video_setFilter, nullptr);
 }
 
 } // graphics

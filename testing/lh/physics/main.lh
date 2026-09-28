@@ -11,12 +11,12 @@ import^love.event
 import^love.timer
 
 let^world = love.physics.newWorld(0, 500, true^)
-let^ground, groundShape = love.physics.newRectangleBody(world, "static", 400, 580, 800, 40)
-let^box, boxShape = love.physics.newRectangleBody(world, "dynamic", 400, 100, 50, 50)
-let^ball, ballShape = love.physics.newCircleBody(world, "dynamic", 420, 0, 20)
-let^ghost, ghostShape = love.physics.newCircleBody(world, "dynamic", 200, 200, 15)
-let^anchor = love.physics.newBody(world, 600, 200, "static")
-let^bob, bobShape = love.physics.newPolygonBody(world, "dynamic", 600, 280, 620, 320, 580, 320)
+let^ground, groundShape = love.physics.newRectangleBody(world, love.physics.BodyType.static, 400, 580, 800, 40)
+let^box, boxShape = love.physics.newRectangleBody(world, love.physics.BodyType.dynamic, 400, 100, 50, 50)
+let^ball, ballShape = love.physics.newCircleBody(world, love.physics.BodyType.dynamic, 420, 0, 20)
+let^ghost, ghostShape = love.physics.newCircleBody(world, love.physics.BodyType.dynamic, 200, 200, 15)
+let^anchor = love.physics.newBody(world, 600, 200, love.physics.BodyType.static)
+let^bob, bobShape = love.physics.newPolygonBody(world, love.physics.BodyType.dynamic, 600, 280, 620, 320, 580, 320)
 let^pendulum = love.physics.newDistanceJoint(anchor, bob, 600, 200, 600, 300, false^)
 let^hinge = love.physics.newRevoluteJoint(box, ball, 400, 100, false^)
 
@@ -137,9 +137,9 @@ public^let^update = p^dt:number^{
 let^drawShape = p^body:love.physics.Body, shape:love.physics.Shape {
     if^shape fits^love.physics.CircleShape {
         let^x, y = body.getPosition()
-        love.graphics.circle("line", x, y, shape.getRadius())
+        love.graphics.circle(love.graphics.DrawMode.line, x, y, shape.getRadius())
     elseif^shape fits^love.physics.PolygonShape:
-        love.graphics.polygon("line", body.getWorldPoints(shape.getPoints()...)...)
+        love.graphics.polygon(love.graphics.DrawMode.line, body.getWorldPoints(shape.getPoints()...)...)
     }
 }
 

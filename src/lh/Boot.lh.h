@@ -103,12 +103,12 @@ let^build = p^{
     let^h = love.graphics.getHeight()
     let^top = h * 0.28
     let^length = 42
-    anchor := love.physics.newBody(world, w / 2, top, "static")
+    anchor := love.physics.newBody(world, w / 2, top, love.physics.BodyType.static)
 
     var^previous = anchor
     for^i from^1 to^letters.length^{
         let^y = top + i * length
-        let^body, shape = love.physics.newCircleBody(world, "dynamic", w / 2, y, 17)
+        let^body, shape = love.physics.newCircleBody(world, love.physics.BodyType.dynamic, w / 2, y, 17)
         shape.setDensity(1.2)
         shape.setFriction(0.4)
         body.resetMassData()
@@ -127,7 +127,7 @@ let^build = p^{
     let^tail = segments[segments.length^ - 1]
     if^tail fits^love.physics.Body {
         let^tx, ty = tail.getPosition()
-        let^ball, ballShape = love.physics.newCircleBody(world, "dynamic", tx, ty + length * 1.8, 32)
+        let^ball, ballShape = love.physics.newCircleBody(world, love.physics.BodyType.dynamic, tx, ty + length * 1.8, 32)
         ballShape.setDensity(0.2)
         ballShape.setRestitution(0.4)
         ball.resetMassData()
@@ -178,9 +178,9 @@ public^let^update = p^dt:number^{
 }
 
 let^cloud = p^x:number^, y:number^, w:number^{
-    love.graphics.ellipse("fill", x, y, w * 0.5, w * 0.28)
-    love.graphics.ellipse("fill", x - w * 0.28, y + w * 0.06, w * 0.3, w * 0.19)
-    love.graphics.ellipse("fill", x + w * 0.3, y + w * 0.05, w * 0.26, w * 0.17)
+    love.graphics.ellipse(love.graphics.DrawMode.fill, x, y, w * 0.5, w * 0.28)
+    love.graphics.ellipse(love.graphics.DrawMode.fill, x - w * 0.28, y + w * 0.06, w * 0.3, w * 0.19)
+    love.graphics.ellipse(love.graphics.DrawMode.fill, x + w * 0.3, y + w * 0.05, w * 0.26, w * 0.17)
 }
 
 public^let^draw = p^{
@@ -214,7 +214,7 @@ public^let^draw = p^{
         if^body fits^love.physics.Body and^letter fits^string^{
             let^x, y = body.getPosition()
             love.graphics.setColor(1, 1, 1, 1)
-            love.graphics.circle("fill", x, y, 17)
+            love.graphics.circle(love.graphics.DrawMode.fill, x, y, 17)
             love.graphics.setColor(0.15, 0.28, 0.4, 1)
             love.graphics.print(letter, x - font.getWidth(letter) / 2, y - font.getHeight() / 2)
         }
@@ -224,17 +224,17 @@ public^let^draw = p^{
     if^balloon fits^love.physics.Body {
         let^bx, by = balloon.getPosition()
         love.graphics.setColor(0.98, 0.85, 0.28, 1)
-        love.graphics.circle("fill", bx, by, 34)
+        love.graphics.circle(love.graphics.DrawMode.fill, bx, by, 34)
         love.graphics.setColor(0.15, 0.28, 0.4, 1)
         let^open = (time * 60) % 240 > 12
         if^open {
-            love.graphics.circle("fill", bx - 11, by - 6, 4)
-            love.graphics.circle("fill", bx + 11, by - 6, 4)
+            love.graphics.circle(love.graphics.DrawMode.fill, bx - 11, by - 6, 4)
+            love.graphics.circle(love.graphics.DrawMode.fill, bx + 11, by - 6, 4)
         else^:
             love.graphics.line(bx - 15, by - 6, bx - 7, by - 6)
             love.graphics.line(bx + 7, by - 6, bx + 15, by - 6)
         }
-        love.graphics.arc("line", "open", bx, by + 2, 16, std.math.rad(30), std.math.rad(150))
+        love.graphics.arc(love.graphics.DrawMode.line, love.graphics.ArcMode.open, bx, by + 2, 16, std.math.rad(30), std.math.rad(150))
     }
 
     love.graphics.setColor(1, 1, 1, 1)

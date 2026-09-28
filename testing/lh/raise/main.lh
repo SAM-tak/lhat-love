@@ -1,8 +1,8 @@
-# A programmer error inside a love call: the host panics with a traceback.
+# An invalid enum member is rejected before the game starts.
 module^raisegame
 
 import^love.graphics
 
 public^let^draw = p^{
-    love.graphics.rectangle("filled", 0, 0, 10, 10)
+    love.graphics.rectangle(love.graphics.DrawMode.filled, 0, 0, 10, 10)
 }

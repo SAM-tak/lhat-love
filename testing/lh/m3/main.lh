@@ -23,7 +23,7 @@ var^picture : love.graphics.Texture|nil^= nil^
 
 public^let^load = p^{
     # audio + sound
-    tone := love.audio.newSource("assets/tone.ogg", "static") catch^nil^
+    tone := love.audio.newSource("assets/tone.ogg", love.audio.SourceType.static) catch^nil^
     if^tone fits^love.audio.Source {
         tone.setVolume(0.3)
         tone.play()
@@ -35,11 +35,11 @@ public^let^load = p^{
     }
 
     # data
-    let^hex = love.data.encode("hex", "lhatove")
-    let^back = love.data.decode("hex", hex)
-    let^digest = love.data.encode("hex", love.data.hash("md5", "lhatove"))
-    let^packed = love.data.compress("lz4", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-    let^unpacked = love.data.decompress("lz4", packed)
+    let^hex = love.data.encode(love.data.EncodeFormat.hex, "lhatove")
+    let^back = love.data.decode(love.data.EncodeFormat.hex, hex)
+    let^digest = love.data.encode(love.data.EncodeFormat.hex, love.data.hash(love.data.HashFunction.md5, "lhatove"))
+    let^packed = love.data.compress(love.data.CompressedDataFormat.lz4, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+    let^unpacked = love.data.decompress(love.data.CompressedDataFormat.lz4, packed)
     print($"data: hex({back}) = {hex}, md5 = {digest}, lz4 {packed.size} -> {unpacked.size} bytes")
 
     # math
@@ -59,7 +59,7 @@ public^let^load = p^{
     print($"system: {love.system.getOS()}, {love.system.getProcessorCount()} cpus, power {state} {percent}%")
 
     # touch / sensor / joystick
-    print($"touch: {love.touch.getTouches().length^} touches; sensor accelerometer: {love.sensor.hasSensor("accelerometer")}; joysticks: {love.joystick.getJoystickCount()}")
+    print($"touch: {love.touch.getTouches().length^} touches; sensor accelerometer: {love.sensor.hasSensor(love.sensor.SensorType.accelerometer)}; joysticks: {love.joystick.getJoystickCount()}")
     for^stick in^love.joystick.getJoysticks() {
         print($"  joystick {stick.getID()}: {stick.getName()} gamepad={stick.isGamepad()} axes={stick.getAxisCount()}")
     }

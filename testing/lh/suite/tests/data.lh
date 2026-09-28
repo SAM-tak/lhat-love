@@ -10,22 +10,22 @@ public^let^run = p^{
     test.begin("love.data")
 
     # encode / decode, both ways round
-    let^hex = love.data.encode("hex", "helloworld")
+    let^hex = love.data.encode(love.data.EncodeFormat.hex, "helloworld")
     test.text("encode hex", "68656c6c6f776f726c64", hex)
-    test.text("decode hex", "helloworld", love.data.decode("hex", hex))
+    test.text("decode hex", "helloworld", love.data.decode(love.data.EncodeFormat.hex, hex))
 
-    let^base64 = love.data.encode("base64", "helloworld")
+    let^base64 = love.data.encode(love.data.EncodeFormat.base64, "helloworld")
     test.text("encode base64", "aGVsbG93b3JsZA==", base64)
-    test.text("decode base64", "helloworld", love.data.decode("base64", base64))
+    test.text("decode base64", "helloworld", love.data.decode(love.data.EncodeFormat.base64, base64))
 
     # hashes, as hex so they can be written down
-    test.text("md5", "fc5e038d38a57032085441e7fe7010b0", love.data.encode("hex", love.data.hash("md5", "helloworld")))
-    test.text("sha1", "6adfb183a4a2c94a2f92dab5ade762a47889a5a1", love.data.encode("hex", love.data.hash("sha1", "helloworld")))
-    test.text("sha256", "936a185caaa266bb9cbe981e9e05cb78cd732b0b3280eb944412bb6f8f8f07af", love.data.encode("hex", love.data.hash("sha256", "helloworld")))
+    test.text("md5", "fc5e038d38a57032085441e7fe7010b0", love.data.encode(love.data.EncodeFormat.hex, love.data.hash(love.data.HashFunction.md5, "helloworld")))
+    test.text("sha1", "6adfb183a4a2c94a2f92dab5ade762a47889a5a1", love.data.encode(love.data.EncodeFormat.hex, love.data.hash(love.data.HashFunction.sha1, "helloworld")))
+    test.text("sha256", "936a185caaa266bb9cbe981e9e05cb78cd732b0b3280eb944412bb6f8f8f07af", love.data.encode(love.data.EncodeFormat.hex, love.data.hash(love.data.HashFunction.sha256, "helloworld")))
 
     # compression: smaller going out, the same coming back
     let^plain = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    for^format in^{ "lz4", "zlib", "gzip", "deflate" } {
+    for^format in^{ love.data.CompressedDataFormat.lz4, love.data.CompressedDataFormat.zlib, love.data.CompressedDataFormat.gzip, love.data.CompressedDataFormat.deflate } {
         let^packed = love.data.compress(format, plain)
         test.isTrue($"{format} is smaller", packed.length < plain.length)
         test.text($"{format} round trip", plain, love.data.decompress(format, packed))

@@ -31,7 +31,7 @@ public^let^run = p^{
 
     test.begin("love.audio")
 
-    let^source = love.audio.newSource("assets/tone.ogg", "static") catch^nil^
+    let^source = love.audio.newSource("assets/tone.ogg", love.audio.SourceType.static) catch^nil^
     if^source = nil^{
         test.isTrue("newSource reads the file", false^)
     else^:
@@ -62,6 +62,9 @@ public^let^run = p^{
         # seek and tell
         source.seek(0.05)
         test.near("seek then tell", 0.05, source.tell(), 0.02)
+        source.seek(0.05, love.audio.TimeUnit.seconds)
+        test.near("explicit time unit", 0.05, source.tell(love.audio.TimeUnit.seconds), 0.02)
+        test.isTrue("duration in samples", source.getDuration(love.audio.TimeUnit.samples) > 0)
 
         # a clone is a source of its own
         let^twin = source.clone()

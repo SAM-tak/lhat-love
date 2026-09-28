@@ -125,6 +125,21 @@ static void lh_dispatch(LhatMachine *machine, void *context, const LhatValue *ar
 		for (const Variant &v : message->args)
 			args.push_back(lh::pushVariant(machine, *binding->registry, v));
 
+		if (message->name == "gamepadpressed" && args.size() > 1)
+			args[1] = lh::pushEnum(machine, "love.joystick", "GamepadButton", lh::stringOf(args[1]));
+
+		if (message->name == "gamepadreleased" && args.size() > 1)
+			args[1] = lh::pushEnum(machine, "love.joystick", "GamepadButton", lh::stringOf(args[1]));
+
+		if (message->name == "gamepadaxis" && args.size() > 1)
+			args[1] = lh::pushEnum(machine, "love.joystick", "GamepadAxis", lh::stringOf(args[1]));
+
+		if (message->name == "joystickhat" && args.size() > 2)
+			args[2] = lh::pushEnum(machine, "love.joystick", "JoystickHat", lh::stringOf(args[2]));
+
+		if (message->name == "sensorupdated" && args.size() > 0)
+			args[0] = lh::pushEnum(machine, "love.sensor", "SensorType", lh::stringOf(args[0]));
+
 		LhatRunResult ran;
 		if (lh::callMember(machine, handlers, message->name.c_str(), args.data(), args.size(), &ran) && ran.status != LHAT_RUN_OK)
 			return; // the fault ends the run (vm.c)

@@ -56,7 +56,7 @@ static void lh_encode(LhatMachine *machine, void *context, const LhatValue *argu
 					  LhatValue *answers, int *answerCount)
 {
 	(void) context;
-	std::string formatstr = lh::optString(arguments, count, 0, "");
+	std::string formatstr = lh::optEnum(machine, arguments, count, 0, "love.data", "EncodeFormat", "");
 	EncodeFormat format;
 	if (!getConstant(formatstr.c_str(), format))
 	{
@@ -87,7 +87,7 @@ static void lh_decode(LhatMachine *machine, void *context, const LhatValue *argu
 					  LhatValue *answers, int *answerCount)
 {
 	(void) context;
-	std::string formatstr = lh::optString(arguments, count, 0, "");
+	std::string formatstr = lh::optEnum(machine, arguments, count, 0, "love.data", "EncodeFormat", "");
 	EncodeFormat format;
 	if (!getConstant(formatstr.c_str(), format))
 	{
@@ -118,7 +118,7 @@ static void lh_hash(LhatMachine *machine, void *context, const LhatValue *argume
 					LhatValue *answers, int *answerCount)
 {
 	(void) context;
-	std::string funcstr = lh::optString(arguments, count, 0, "");
+	std::string funcstr = lh::optEnum(machine, arguments, count, 0, "love.data", "HashFunction", "");
 	HashFunction::Function function;
 	if (!HashFunction::getConstant(funcstr.c_str(), function))
 	{
@@ -146,7 +146,7 @@ static void lh_compress(LhatMachine *machine, void *context, const LhatValue *ar
 						LhatValue *answers, int *answerCount)
 {
 	(void) context;
-	std::string formatstr = lh::optString(arguments, count, 0, "");
+	std::string formatstr = lh::optEnum(machine, arguments, count, 0, "love.data", "CompressedDataFormat", "");
 	Compressor::Format format;
 	if (!Compressor::getConstant(formatstr.c_str(), format))
 	{
@@ -175,7 +175,7 @@ static void lh_decompress(LhatMachine *machine, void *context, const LhatValue *
 						  LhatValue *answers, int *answerCount)
 {
 	(void) context;
-	std::string formatstr = lh::optString(arguments, count, 0, "");
+	std::string formatstr = lh::optEnum(machine, arguments, count, 0, "love.data", "CompressedDataFormat", "");
 	Compressor::Format format;
 	if (!Compressor::getConstant(formatstr.c_str(), format))
 	{
@@ -208,19 +208,29 @@ namespace lh
 
 bool lhopen_love_data(Context &ctx)
 {
+	using namespace love::data;
+	if (ctx.types())
+	{
+		if (!ctx.enumType("love.data", "EncodeFormat", getConstants(EncodeFormat{})))
+			return false;
+		if (!ctx.enumType("love.data", "HashFunction", HashFunction::getConstants(HashFunction::Function{})))
+			return false;
+		if (!ctx.enumType("love.data", "CompressedDataFormat", Compressor::getConstants(Compressor::Format{})))
+			return false;
+	}
+
 	if (ctx.types())
 		return true;
 
-	using namespace love::data;
 	binding.errors = ctx.errors;
 	const char *m = "love.data";
-	return ctx.func(m, "encode", "f^string^, string^ -> string^;", lh_encode, nullptr)
-		&& ctx.func(m, "encode", "f^string^, string^, number^ -> string^;", lh_encode, nullptr)
-		&& ctx.func(m, "decode", "f^string^, string^ -> string^;", lh_decode, nullptr)
-		&& ctx.func(m, "hash", "f^string^, string^ -> string^;", lh_hash, nullptr)
-		&& ctx.func(m, "compress", "f^string^, string^ -> string^;", lh_compress, nullptr)
-		&& ctx.func(m, "compress", "f^string^, string^, number^ -> string^;", lh_compress, nullptr)
-		&& ctx.func(m, "decompress", "f^string^, string^ -> string^;", lh_decompress, nullptr);
+	return ctx.func(m, "encode", "f^love.data.EncodeFormat, string^ -> string^;", lh_encode, nullptr)
+		&& ctx.func(m, "encode", "f^love.data.EncodeFormat, string^, number^ -> string^;", lh_encode, nullptr)
+		&& ctx.func(m, "decode", "f^love.data.EncodeFormat, string^ -> string^;", lh_decode, nullptr)
+		&& ctx.func(m, "hash", "f^love.data.HashFunction, string^ -> string^;", lh_hash, nullptr)
+		&& ctx.func(m, "compress", "f^love.data.CompressedDataFormat, string^ -> string^;", lh_compress, nullptr)
+		&& ctx.func(m, "compress", "f^love.data.CompressedDataFormat, string^, number^ -> string^;", lh_compress, nullptr)
+		&& ctx.func(m, "decompress", "f^love.data.CompressedDataFormat, string^ -> string^;", lh_decompress, nullptr);
 }
 
 } // lh

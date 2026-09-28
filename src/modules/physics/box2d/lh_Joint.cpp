@@ -143,7 +143,7 @@ static void lh_Joint_getType(LhatMachine *machine, void *context, const LhatValu
 	const char *type = "";
 	Joint::getConstant(j->getType(), type);
 	LhatValue out = lhat_nil();
-	lh::makeString(machine, type, &out);
+	out = lh::pushEnum(machine, "love.physics", "JointType", type);
 	answers[0] = out;
 	*answerCount = 1;
 }
@@ -490,7 +490,7 @@ bool lhPhysicsJoint(lh::Context &ctx)
 	const char *four = "f^self^ -> (number^, number^, number^, number^);";
 
 	// What every joint answers.
-	bool ok = ctx.member(m, J, "getType", "f^self^ -> string^;", lh_Joint_getType, nullptr)
+	bool ok = ctx.member(m, J, "getType", "f^self^ -> love.physics.JointType;", lh_Joint_getType, nullptr)
 		&& ctx.member(m, J, "getBodies", "p^self^ -> (love.physics.Body, love.physics.Body);", lh_Joint_getBodies, nullptr)
 		&& ctx.member(m, J, "getAnchors", four, lh_Joint_getAnchors, nullptr)
 		&& ctx.member(m, J, "getReactionForce", "f^self^, number^ -> (number^, number^);", lh_Joint_getReactionForce, nullptr)

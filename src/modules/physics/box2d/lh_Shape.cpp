@@ -112,7 +112,7 @@ static void lh_Shape_getType(LhatMachine *machine, void *context, const LhatValu
 	const char *type = "";
 	Shape::getConstant(s->getType(), type);
 	LhatValue out = lhat_nil();
-	lh::makeString(machine, type, &out);
+	out = lh::pushEnum(machine, "love.physics", "ShapeType", type);
 	answers[0] = out;
 	*answerCount = 1;
 }
@@ -618,7 +618,7 @@ bool lhPhysicsShape(lh::Context &ctx)
 	const char *points = "f^self^ -> t^{number^[]};";
 
 	// What every shape answers.
-	bool ok = ctx.member(m, S, "getType", "f^self^ -> string^;", lh_Shape_getType, nullptr)
+	bool ok = ctx.member(m, S, "getType", "f^self^ -> love.physics.ShapeType;", lh_Shape_getType, nullptr)
 		&& ctx.member(m, S, "getRadius", "f^self^ -> number^;", lh_Shape_getRadius, nullptr)
 		&& ctx.member(m, S, "getChildCount", "f^self^ -> number^;", lh_Shape_getChildCount, nullptr)
 		&& ctx.member(m, S, "setFriction", "p^self^, number^;", lh_Shape_setFriction, nullptr)

@@ -28,7 +28,7 @@ public^let^ update = p^dt:number^ {
 }
 
 public^let^ draw = p^ {
-    love.graphics.rectangle("fill", x, 100, 50, 50)
+    love.graphics.rectangle(love.graphics.DrawMode.fill, x, 100, 50, 50)
 }
 
 public^let^ keypressed = p^key:string^, scancode:string^, isrepeat:bool^ {
@@ -208,3 +208,68 @@ copy /b build-vmonly-shipping\love\Release\love.exe+mygame.love mygame.exe
 - **スレッド**（`import^ std.thread` / `import^ std.channel`。love.thread は無い）: ワーカーの本体は**同じユニットに書く閉包** — `std.thread.spawn(p^ ... { ... }, 引数...)`。捕捉した外の名前は**写し**で渡る（向こうで書いても戻らない）。答えは `h.join()`、待たずに訊くなら `h.done()` / `h.failed()`、`std.async` に載せるなら `h.awaitable()`。チャネルは `std.channel.new()` / `.named(名前)` で、`push/supply/pop/demand/peek/count/hasRead/clear/atomic`。number（整数は整数のまま）・string・table・閉包・**LOVE オブジェクト**が渡る。ワーカーが落ちたら `threaderror`（`p^string^`）が来る。これらの入口はメモリ不足を含む合併を返すので、`let^ c = try^ std.channel.named("jobs")` と書き、ブロックの末尾に `catch^:` の腕を置く（04 の 4.5。腕はブロック一般の節で、`do^{ … catch^: … }` でも、`p^` / `f^` の本体に直接でもよい）— `try^` は式の位置だけなので捨てる値も `let^_^= try^ c.push(x)`、腕を持つブロックの直下で値としての `catch^` を書くなら括弧が要る
 - `love.graphics`: Canvas は `newCanvas(w, h)` が返す Texture（`isCanvas()`）。`setCanvas(c)` / `setCanvas()`。ピクセルを読むには `love.graphics.readbackTexture(c)` → ImageData。`draw(texture, quad, x, y, ...)` は第 2 引数に Quad。`Shader.send(name, ...)` は数値列・`{...}` 表・Texture・Transform を受ける。Mesh の頂点は `{x, y, u, v, r, g, b, a}`（後ろ 6 つ省略可）
 - ブロックは `do^{ ... }`。裸の `{ ... }` はテーブル literal なので文にならない。同じ名前を二度作りたい時（`known` を 2 回など）は `do^` で囲んでスコープを分ける
+
+## enum で指定する定数
+
+候補が決まったモードや種別は、文字列ではなくモジュールが公開する enum を使う。
+メンバの綴りは従来の文字列と同じ。`DrawMode.fill` と `MeshDrawMode.fan` は別の型で、取り違えは型検査で拒否される。
+戻り値にも同じ enum が使われるため、そのまま setter に渡したり、`when^` で網羅的に分岐したりできる。
+
+```lhat
+import^love.graphics
+import^love.joystick
+
+love.graphics.rectangle(love.graphics.DrawMode.fill, 10, 20, 100, 50)
+love.graphics.setBlendMode(love.graphics.BlendMode.alpha)
+let^mode, alpha = love.graphics.getBlendMode()
+love.graphics.setBlendMode(mode, alpha)
+
+public^let^gamepadpressed = p^stick:love.joystick.Joystick, button:love.joystick.GamepadButton {
+    if^button = love.joystick.GamepadButton.a { print("A pressed") }
+}
+```
+
+| モジュール | enum |
+| --- | --- |
+| `love.graphics` | `DrawMode`, `ArcMode`, `AlignMode`, `BlendMode`, `BlendAlphaMode`, `StencilMode`, `LineStyle`, `LineJoin`, `FilterMode`, `WrapMode`, `PixelFormat`, `MipmapMode`, `MeshDrawMode`, `Usage`, `ParticleInsertMode`, `AreaSpreadDistribution` |
+| `love.joystick` | `GamepadButton`, `GamepadAxis`, `JoystickHat` |
+| `love.audio` | `SourceType`, `TimeUnit` |
+| `love.data` | `EncodeFormat`, `HashFunction`, `CompressedDataFormat` |
+| `love.physics` | `BodyType`, `ShapeType`, `JointType` |
+| `love.filesystem` | `FileMode`, `FileType` |
+| `love.sensor` | `SensorType` |
+| `love.system` | `PowerState` |
+
+`gamepadpressed` / `gamepadreleased` の第2引数は `GamepadButton`、`gamepadaxis` の第2引数は `GamepadAxis`、`joystickhat` の第3引数は `JoystickHat`、`sensorupdated` の第1引数は `SensorType`。
+`newCanvas` の設定内の `format` / `mipmaps` も `PixelFormat` / `MipmapMode` を渡す。
+省略した引数の既定値は従来どおり。たとえば `setFilter(FilterMode.nearest)` は min / mag 両方を nearest にする。
+
+文字列が必要なパス・テキスト・シェーダーの uniform 名・キー名（Unicode 文字も受け取る）などは文字列のまま。
+`conf.lton` は `love.*` を参照できないため、fullscreen などの設定値も文字列を使う。
+enum の整数値は C++ の列挙値を公開する契約ではない。メンバ名と型を使うこと。
+
+検証: `python testing/test_enums.py --lovec build/love/Release/lovec.exe`。
+通常の `testing/lh/suite` は enum の往復・型の区別・網羅分岐も確認する。
+
+## ソースのコンパイルと自動テスト
+
+```powershell
+# LÖVE API を登録した状態でソースをコンパイルする。実行はしない。
+.\build\love\Release\lovec.exe --compile -o out path\to\fighter.lh
+
+# ゲーム全体（未参照の .lh、conf.lton、素材も含む）を出力する。
+.\build\love\Release\lovec.exe --compile-game out\game path\to\game
+
+# panic でエラー画面を待たず、診断を stderr に出して終了する。
+.\build\love\Release\lovec.exe --no-error-screen path\to\game
+```
+
+`--compile` の入力は `.lh` ファイル。指定したソースと `require^` で到達するユニットだけを、入力ファイルのあるディレクトリからの相対配置で出力する。たとえば `fighter.lh` と `lib/ai.lh` は `out/fighter.lh` と `out/lib/ai.lh` になる。拡張子は `.lh` のまま、中身がバイナリになる。通常のライブラリも対象なので、公開された `draw` や `update` にゲーム用コールバックの型は要求しない。無関係なソース、`conf.lton`、素材は出力しない。
+
+`-o DIR`（または `--output DIR`）は必須。`--debug-names` を添えるとローカル名・捕捉名を残す。バイナリは同じ L^ バージョン・ホスト API を持つエンジンで読む。ソースとバイナリを同じプログラム内で混在させず、実行用エントリから依存グラフ全体をコンパイルする。
+
+型検査だけでなく、コンパイラ段階の失敗も、処理系が持つファイル名・行・列・ソース抜粋・理由を stderr に表示し、終了コード 1 を返す。`--compile-game` が追加で検査する未参照ユニットの失敗にも診断を表示する。コンパイル用オプションはエラーダイアログを開かない。
+
+`--no-error-screen` は実行時のエラー画面とエラーダイアログを抑止する。通常のゲーム画面や描画は無効化しない。panic の本文と位置・トレースを stderr に出し、終了コード 1 で終了する。省略時は従来どおりエラー画面で操作を待つ。`lovec.exe` と `love.exe` の両方で使える。自動テストではこのオプションに加えて、無限ループ対策のプロセスタイムアウトも設定するとよい。
+
+回帰テスト: `python testing/test_cli_compile.py --lovec build/love/Release/lovec.exe`。

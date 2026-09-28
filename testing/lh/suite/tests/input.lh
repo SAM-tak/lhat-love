@@ -46,6 +46,16 @@ public^let^run = p^{
 
     test.begin("love.joystick")
 
+    let^button : any^ = love.joystick.GamepadButton.a
+    test.isTrue("gamepad buttons have a nominal type", button fits^love.joystick.GamepadButton)
+    test.isFalse("a button is not an axis", button fits^love.joystick.GamepadAxis)
+
+    # Check these signatures even when no physical controller is connected.
+    let^readGamepad = f^stick:love.joystick.Joystick -> bool^ {
+        return^stick.isGamepadDown(love.joystick.GamepadButton.a, love.joystick.GamepadButton.b)
+            or^stick.getGamepadAxis(love.joystick.GamepadAxis.leftx) > 0.5
+    }
+
     let^sticks = love.joystick.getJoysticks()
     test.number("getJoystickCount agrees with the list", sticks.length^, love.joystick.getJoystickCount())
     for^stick in^sticks {
@@ -54,6 +64,7 @@ public^let^run = p^{
         test.isTrue("a joystick has a GUID", stick.getGUID().length > 0)
         test.isTrue("axis count is not negative", stick.getAxisCount() >= 0)
         test.isTrue("button count is not negative", stick.getButtonCount() >= 0)
+        if^stick.isGamepad() { readGamepad(stick) }
     }
 
     test.begin("love.touch")
@@ -63,7 +74,7 @@ public^let^run = p^{
 
     test.begin("love.sensor")
 
-    for^kind in^{ "accelerometer", "gyroscope" } {
+    for^kind in^{ love.sensor.SensorType.accelerometer, love.sensor.SensorType.gyroscope } {
         let^has = love.sensor.hasSensor(kind)
         if^has {
             test.isFalse($"{kind} starts disabled", love.sensor.isEnabled(kind))

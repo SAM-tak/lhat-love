@@ -139,6 +139,53 @@ bool Context::bind(const char *name, const char *member) const
 	return lhat_bind_initial(program, name, member);
 }
 
+bool Context::enumType(const char *module, const char *name, const std::vector<std::string> &members) const
+{
+	if (!types())
+		return true;
+	std::vector<const char *> names;
+	for (const auto &member : members)
+		names.push_back(member.c_str());
+	return lhat_register_enum(program, module, nullptr, name, names.data(), names.size())
+		|| noteFailure(failed, module, name);
+}
+
+const char *enumName(LhatMachine *machine, LhatValue value, const char *module, const char *type)
+{
+	LhatValue declaration = lhat_nil();
+	if (lhat_is_object_kind(value, LHAT_OBJECT_ENUMERATOR)
+		&& lhat_machine_registered(machine, module, nullptr, type, &declaration)
+		&& lhat_is_object_kind(declaration, LHAT_OBJECT_ENUM))
+	{
+		const auto *member = (const LhatEnumerator *) lhat_as_object(value);
+		if (member->owner == (const LhatEnum *) lhat_as_object(declaration))
+			return member->name->text;
+	}
+	raise(machine, std::string("Expected ") + module + "." + type);
+	return "";
+}
+
+std::string optEnum(LhatMachine *machine, const LhatValue *args, size_t count, size_t index,
+                    const char *module, const char *type, const std::string &fallback)
+{
+	return index >= count ? fallback : enumName(machine, args[index], module, type);
+}
+
+LhatValue pushEnum(LhatMachine *machine, const char *module, const char *type, const char *name)
+{
+	LhatValue declaration = lhat_nil(), key = lhat_nil();
+	if (name != nullptr && lhat_machine_registered(machine, module, nullptr, type, &declaration)
+		&& lhat_is_object_kind(declaration, LHAT_OBJECT_ENUM) && makeString(machine, name, &key))
+	{
+		const auto *owner = (const LhatEnum *) lhat_as_object(declaration);
+		LhatValue value = lhat_table_get(owner->members, key);
+		if (!lhat_is_nil(value))
+			return value;
+	}
+	raise(machine, std::string("Unknown ") + module + "." + type + " member: " + (name ? name : "(not a string)"));
+	return lhat_nil();
+}
+
 bool Context::errorKind(const char *module, const char *const *variants, size_t count,
                         const LhatErrorKind **out) const
 {
@@ -477,8 +524,50 @@ std::string Runtime::diagnostics() const
 	return out;
 }
 
+std::string Runtime::compileDiagnostics() const
+{
+	if (program_ == nullptr)
+		return "Could not create the L^ program.";
+	const char *path = nullptr;
+	LhatCompileResult failure = lhat_program_compile_failure(program_, &path);
+	if (failure.status == LHAT_COMPILE_OK)
+	{
+		if (!compileError_.empty())
+			return compileError_;
+		std::string checked = diagnostics();
+		return checked.empty() ? "Could not compile the program (no compiler diagnostic was provided)." : checked;
+	}
+
+	std::vector<char> message(lhat_compile_message_write(program_, &failure, nullptr, 0) + 1);
+	lhat_compile_message_write(program_, &failure, message.data(), message.size());
+	if (failure.line == 0)
+		return std::string(path != nullptr ? path : "lhat") + ": error: " + message.data();
+
+	const LhatSource *source = nullptr;
+	for (const LhatUnit *unit = lhat_program_units(program_); unit != nullptr; unit = lhat_unit_next(unit))
+	{
+		const char *unitPath = lhat_unit_path(unit);
+		if (path != nullptr && unitPath != nullptr && strcmp(path, unitPath) == 0)
+		{
+			source = lhat_unit_source(unit);
+			break;
+		}
+	}
+	LhatReport report = {};
+	report.kind = LHAT_REPORT_ERROR;
+	report.message = message.data();
+	report.offset = failure.offset;
+	report.line = failure.line;
+	report.column = failure.column;
+	report.length = failure.name_length;
+	std::vector<char> text(lhat_report_write(program_, &report, source, path, true, nullptr, 0) + 1);
+	lhat_report_write(program_, &report, source, path, true, text.data(), text.size());
+	return text.data();
+}
+
 bool Runtime::compile()
 {
+	compileError_.clear();
 	if (program_ == nullptr || !lhat_program_compile(program_))
 		return false;
 
@@ -486,13 +575,24 @@ bool Runtime::compile()
 	{
 		machine_ = lhat_machine_new();
 		if (machine_ == nullptr)
+		{
+			compileError_ = "Could not create the L^ virtual machine.";
 			return false;
+		}
 	}
 
 	// Puts what was registered into L^.modules so an import^ finds it.
 	if (!lhat_program_install(program_, machine_))
+	{
+		compileError_ = "Could not install the compiled program into the L^ virtual machine.";
 		return false;
-	return lot_->attach(machine_);
+	}
+	if (!lot_->attach(machine_))
+	{
+		compileError_ = "Could not attach the host value registry to the L^ virtual machine.";
+		return false;
+	}
+	return true;
 }
 
 // ---------------------------------------------------------------------------

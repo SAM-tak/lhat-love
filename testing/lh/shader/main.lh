@@ -26,7 +26,7 @@ let^video = love.graphics.newVideo("assets/sample.ogv", { audio = false^}) catch
 let^batch = love.graphics.newSpriteBatch(canvas, 16)
 let^particles = love.graphics.newParticleSystem(canvas, 100)
 let^text = love.graphics.newTextBatch(love.graphics.getFont(), "hello")
-let^mesh = love.graphics.newMesh({ {0, 0, 0, 0}, {64, 0, 1, 0}, {64, 64, 1, 1}, {0, 64, 0, 1} }, "fan")
+let^mesh = love.graphics.newMesh({ {0, 0, 0, 0}, {64, 0, 1, 0}, {64, 64, 1, 1}, {0, 64, 0, 1} }, love.graphics.MeshDrawMode.fan)
 let^quad = love.graphics.newQuad(0, 0, 32, 32, canvas)
 
 public^let^load = p^{
@@ -34,7 +34,7 @@ public^let^load = p^{
     love.graphics.setCanvas(canvas)
     love.graphics.clear(0, 0, 0, 1)
     love.graphics.setColor(1, 0, 0, 1)
-    love.graphics.rectangle("fill", 16, 16, 32, 32)
+    love.graphics.rectangle(love.graphics.DrawMode.fill, 16, 16, 32, 32)
     love.graphics.setCanvas()
     love.graphics.setColor(1, 1, 1, 1)
     let^pixels = love.graphics.readbackTexture(canvas)
@@ -80,10 +80,10 @@ public^let^load = p^{
     mesh.setVertex(2, 60, 60, 1, 1, 0.5, 0.5, 0.5, 1)
     let^mx2, my2, _u, _v, mr2, _g, _b, _a = mesh.getVertex(2)
     check("mesh set vertex", mx2 = 60 and^(mr2 - 0.5).abs() < 0.01)
-    check("mesh count/mode", mesh.getVertexCount() = 4 and^mesh.getDrawMode() = "fan" and^mesh.getTexture()?)
-    mesh.setDrawMode("triangles")
+    check("mesh count/mode", mesh.getVertexCount() = 4 and^mesh.getDrawMode() = love.graphics.MeshDrawMode.fan and^mesh.getTexture()?)
+    mesh.setDrawMode(love.graphics.MeshDrawMode.triangles)
     mesh.setVertexMap(0, 1, 2, 2, 3, 0)
-    check("mesh vertex map", mesh.getVertexMap().length^= 6 and^mesh.getDrawMode() = "triangles")
+    check("mesh vertex map", mesh.getVertexMap().length^= 6 and^mesh.getDrawMode() = love.graphics.MeshDrawMode.triangles)
 
     # sprite batch
     let^id = batch.add(10, 10)
@@ -110,26 +110,26 @@ public^let^load = p^{
     check("textbatch", tw > 0 and^th > 0 and^text.add("more", 0, 20) = 1)
 
     # state
-    love.graphics.setBlendMode("add", "premultiplied")
+    love.graphics.setBlendMode(love.graphics.BlendMode.add, love.graphics.BlendAlphaMode.premultiplied)
     let^bm, ba = love.graphics.getBlendMode()
-    love.graphics.setBlendMode("alpha")
+    love.graphics.setBlendMode(love.graphics.BlendMode.alpha)
     love.graphics.setScissor(10, 20, 30, 40)
     let^sx, sy, sw, sh = love.graphics.getScissor()
     love.graphics.setScissor()
     love.graphics.setColorMask(true^, false^, true^, true^)
     let^mr_, mg_, _mb, _ma = love.graphics.getColorMask()
     love.graphics.setColorMask()
-    love.graphics.setLineStyle("rough")
-    love.graphics.setDefaultFilter("nearest", "nearest")
+    love.graphics.setLineStyle(love.graphics.LineStyle.rough)
+    love.graphics.setDefaultFilter(love.graphics.FilterMode.nearest, love.graphics.FilterMode.nearest)
     let^fmin, fmag, aniso = love.graphics.getDefaultFilter()
-    love.graphics.setDefaultFilter("linear")
+    love.graphics.setDefaultFilter(love.graphics.FilterMode.linear)
     let^name, version, vendor, device = love.graphics.getRendererInfo()
     let^stats = love.graphics.getStats()
     love.graphics.push()
     love.graphics.translate(100, 50)
     let^tx, ty = love.graphics.transformPoint(1, 1)
     love.graphics.pop()
-    check("state", bm = "add" and^ba = "premultiplied" and^sx = 10 and^sh = 40 and^mr_ and^!mg_ and^love.graphics.getLineStyle() = "rough" and^fmin = "nearest" and^tx = 101 and^ty = 51)
+    check("state", bm = love.graphics.BlendMode.add and^ba = love.graphics.BlendAlphaMode.premultiplied and^sx = 10 and^sh = 40 and^mr_ and^!mg_ and^love.graphics.getLineStyle() = love.graphics.LineStyle.rough and^fmin = love.graphics.FilterMode.nearest and^tx = 101 and^ty = 51)
     check("info", name.length > 0 and^stats.textures > 0)
     print($"renderer: {name} {version} ({vendor}, {device})")
 
@@ -174,7 +174,7 @@ public^let^draw = p^{
     love.graphics.draw(text, 10, 120)
     if^video fits^love.graphics.Video { love.graphics.draw(video, 10, 160, 0, 0.5, 0.5) }
     if^picture fits^love.graphics.Texture { love.graphics.draw(picture, 400, 200) }
-    love.graphics.ellipse("line", 600, 100, 40, 20)
-    love.graphics.arc("fill", "pie", 700, 100, 30, 0, 2)
+    love.graphics.ellipse(love.graphics.DrawMode.line, 600, 100, 40, 20)
+    love.graphics.arc(love.graphics.DrawMode.fill, love.graphics.ArcMode.pie, 700, 100, 30, 0, 2)
     love.graphics.print($"M5 graphics: frame {frames}", 10, 10)
 }

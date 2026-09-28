@@ -222,7 +222,7 @@ bool callParked(LhatMachine *machine, lh::Parked *callee, const LhatValue *args,
 
 static bool bodyTypeAt(LhatMachine *machine, const LhatValue *args, size_t count, size_t index, Body::Type &out)
 {
-	std::string name = lh::optString(args, count, index, "static");
+	std::string name = lh::optEnum(machine, args, count, index, "love.physics", "BodyType", "static");
 	if (!Body::getConstant(name.c_str(), out))
 	{
 		lh::raise(machine, "Invalid Body type: " + name);
@@ -931,6 +931,16 @@ namespace lh
 bool lhopen_love_physics(Context &ctx)
 {
 	using namespace love::physics::box2d;
+	if (ctx.types())
+	{
+		if (!ctx.enumType("love.physics", "BodyType", Body::getConstants(Body::Type{})))
+			return false;
+		if (!ctx.enumType("love.physics", "ShapeType", Shape::SHAPE_MAX_ENUM, Shape::getConstant))
+			return false;
+		if (!ctx.enumType("love.physics", "JointType", Joint::JOINT_MAX_ENUM, Joint::getConstant))
+			return false;
+	}
+
 	const char *m = LH_PHYSICS;
 
 	// The types first (every signature below names them), then each type's
@@ -955,14 +965,14 @@ bool lhopen_love_physics(Context &ctx)
 		&& ctx.func(m, "newWorld", (std::string("p^number^, number^, bool^ -> ") + W + ";").c_str(), lh_newWorld, nullptr)
 		&& ctx.func(m, "newBody", (std::string("p^") + W + " -> " + B + ";").c_str(), lh_newBody, nullptr)
 		&& ctx.func(m, "newBody", (std::string("p^") + W + ", number^, number^ -> " + B + ";").c_str(), lh_newBody, nullptr)
-		&& ctx.func(m, "newBody", (std::string("p^") + W + ", number^, number^, string^ -> " + B + ";").c_str(), lh_newBody, nullptr)
-		&& ctx.func(m, "newCircleBody", (std::string("p^") + W + ", string^, number^, number^, number^" + bodyAnd("CircleShape")).c_str(), lh_newCircleBody, nullptr)
-		&& ctx.func(m, "newRectangleBody", (std::string("p^") + W + ", string^, number^, number^, number^, number^" + bodyAnd("PolygonShape")).c_str(), lh_newRectangleBody, nullptr)
-		&& ctx.func(m, "newRectangleBody", (std::string("p^") + W + ", string^, number^, number^, number^, number^, number^" + bodyAnd("PolygonShape")).c_str(), lh_newRectangleBody, nullptr)
-		&& ctx.func(m, "newPolygonBody", (std::string("p^") + W + ", string^, number^, number^, number^, number^, number^, number^, ..." + bodyAnd("PolygonShape")).c_str(), lh_newPolygonBody, nullptr)
-		&& ctx.func(m, "newEdgeBody", (std::string("p^") + W + ", string^, number^, number^, number^, number^" + bodyAnd("EdgeShape")).c_str(), lh_newEdgeBody, nullptr)
-		&& ctx.func(m, "newEdgeBody", (std::string("p^") + W + ", string^, number^, number^, number^, number^, number^, number^, number^, number^" + bodyAnd("EdgeShape")).c_str(), lh_newEdgeBody, nullptr)
-		&& ctx.func(m, "newChainBody", (std::string("p^") + W + ", string^, bool^, number^, number^, ..." + bodyAnd("ChainShape")).c_str(), lh_newChainBody, nullptr)
+		&& ctx.func(m, "newBody", (std::string("p^") + W + ", number^, number^, love.physics.BodyType -> " + B + ";").c_str(), lh_newBody, nullptr)
+		&& ctx.func(m, "newCircleBody", (std::string("p^") + W + ", love.physics.BodyType, number^, number^, number^" + bodyAnd("CircleShape")).c_str(), lh_newCircleBody, nullptr)
+		&& ctx.func(m, "newRectangleBody", (std::string("p^") + W + ", love.physics.BodyType, number^, number^, number^, number^" + bodyAnd("PolygonShape")).c_str(), lh_newRectangleBody, nullptr)
+		&& ctx.func(m, "newRectangleBody", (std::string("p^") + W + ", love.physics.BodyType, number^, number^, number^, number^, number^" + bodyAnd("PolygonShape")).c_str(), lh_newRectangleBody, nullptr)
+		&& ctx.func(m, "newPolygonBody", (std::string("p^") + W + ", love.physics.BodyType, number^, number^, number^, number^, number^, number^, ..." + bodyAnd("PolygonShape")).c_str(), lh_newPolygonBody, nullptr)
+		&& ctx.func(m, "newEdgeBody", (std::string("p^") + W + ", love.physics.BodyType, number^, number^, number^, number^" + bodyAnd("EdgeShape")).c_str(), lh_newEdgeBody, nullptr)
+		&& ctx.func(m, "newEdgeBody", (std::string("p^") + W + ", love.physics.BodyType, number^, number^, number^, number^, number^, number^, number^, number^" + bodyAnd("EdgeShape")).c_str(), lh_newEdgeBody, nullptr)
+		&& ctx.func(m, "newChainBody", (std::string("p^") + W + ", love.physics.BodyType, bool^, number^, number^, ..." + bodyAnd("ChainShape")).c_str(), lh_newChainBody, nullptr)
 		&& ctx.func(m, "newCircleShape", (std::string("p^") + B + ", number^ -> love.physics.CircleShape;").c_str(), lh_newCircleShape, nullptr)
 		&& ctx.func(m, "newCircleShape", (std::string("p^") + B + ", number^, number^, number^ -> love.physics.CircleShape;").c_str(), lh_newCircleShape, nullptr)
 		&& ctx.func(m, "newRectangleShape", (std::string("p^") + B + ", number^, number^ -> love.physics.PolygonShape;").c_str(), lh_newRectangleShape, nullptr)

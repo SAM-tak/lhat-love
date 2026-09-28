@@ -89,7 +89,7 @@ static void lh_newSource(LhatMachine *machine, void *context, const LhatValue *a
 	}
 
 	std::string path = lh::optString(arguments, count, 0, "");
-	std::string typestr = lh::optString(arguments, count, 1, "stream");
+	std::string typestr = lh::optEnum(machine, arguments, count, 1, "love.audio", "SourceType", "stream");
 	Source::Type stype = Source::TYPE_STREAM;
 	if (!Source::getConstant(typestr.c_str(), stype) || stype == Source::TYPE_QUEUE)
 	{
@@ -326,7 +326,7 @@ static bool unitOf(LhatMachine *machine, const LhatValue *arguments, size_t coun
 	unit = Source::UNIT_SECONDS;
 	if (index >= count)
 		return true;
-	std::string name = lh::optString(arguments, count, index, "seconds");
+	std::string name = lh::optEnum(machine, arguments, count, index, "love.audio", "TimeUnit", "seconds");
 	if (!Source::getConstant(name.c_str(), unit))
 	{
 		lh::raise(machine, "Invalid time unit: " + name);
@@ -415,6 +415,14 @@ namespace lh
 bool lhopen_love_audio(Context &ctx)
 {
 	using namespace love::audio;
+	if (ctx.types())
+	{
+		if (!ctx.enumType("love.audio", "SourceType", Source::getConstants(Source::Type{})))
+			return false;
+		if (!ctx.enumType("love.audio", "TimeUnit", Source::getConstants(Source::Unit{})))
+			return false;
+	}
+
 	const char *m = "love.audio";
 
 	// 04 の 2.4: what love.audio can fail at, declared where it fails.
@@ -435,7 +443,7 @@ bool lhopen_love_audio(Context &ctx)
 	binding.registry = ctx.registry;
 
 	return ctx.func(m, "newSource", "p^string^ -> love.audio.Source|love.audio.Error;", lh_newSource, nullptr)
-		&& ctx.func(m, "newSource", "p^string^, string^ -> love.audio.Source|love.audio.Error;", lh_newSource, nullptr)
+		&& ctx.func(m, "newSource", "p^string^, love.audio.SourceType -> love.audio.Source|love.audio.Error;", lh_newSource, nullptr)
 		&& ctx.func(m, "newSource", "p^love.sound.SoundData -> love.audio.Source;", lh_newSource, nullptr)
 		&& ctx.func(m, "play", "p^love.audio.Source, ... -> bool^;", lh_play, nullptr)
 		&& ctx.func(m, "stop", "p^...;", lh_stop, nullptr)
@@ -453,9 +461,12 @@ bool lhopen_love_audio(Context &ctx)
 		&& ctx.member(m, "Source", "getVolume", "f^self^ -> number^;", lh_Source_getVolume, nullptr)
 		&& ctx.member(m, "Source", "setPitch", "p^self^, number^;", lh_Source_setPitch, nullptr)
 		&& ctx.member(m, "Source", "getPitch", "f^self^ -> number^;", lh_Source_getPitch, nullptr)
-		&& ctx.member(m, "Source", "seek", "p^self^, number^, ...;", lh_Source_seek, nullptr)
-		&& ctx.member(m, "Source", "tell", "f^self^, ... -> number^;", lh_Source_tell, nullptr)
-		&& ctx.member(m, "Source", "getDuration", "f^self^, ... -> number^;", lh_Source_getDuration, nullptr)
+		&& ctx.member(m, "Source", "seek", "p^self^, number^;", lh_Source_seek, nullptr)
+		&& ctx.member(m, "Source", "seek", "p^self^, number^, love.audio.TimeUnit;", lh_Source_seek, nullptr)
+		&& ctx.member(m, "Source", "tell", "f^self^ -> number^;", lh_Source_tell, nullptr)
+		&& ctx.member(m, "Source", "tell", "f^self^, love.audio.TimeUnit -> number^;", lh_Source_tell, nullptr)
+		&& ctx.member(m, "Source", "getDuration", "f^self^ -> number^;", lh_Source_getDuration, nullptr)
+		&& ctx.member(m, "Source", "getDuration", "f^self^, love.audio.TimeUnit -> number^;", lh_Source_getDuration, nullptr)
 		&& ctx.member(m, "Source", "clone", "p^self^ -> love.audio.Source;", lh_Source_clone, nullptr)
 		&& ctx.member(m, "Source", "getChannelCount", "f^self^ -> number^;", lh_Source_getChannelCount, nullptr);
 }

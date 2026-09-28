@@ -26,11 +26,11 @@ public^let^update = p^dt:number^{
 
 public^let^draw = p^{
     love.graphics.setColor(0.9, 0.3, 0.3)
-    love.graphics.rectangle("fill", x, y, 50, 50)
+    love.graphics.rectangle(love.graphics.DrawMode.fill, x, y, 50, 50)
     love.graphics.setColor(1, 1, 1)
     love.graphics.print($"lhatove M1 -- fps {love.timer.getFPS()} frame {frames}", 10, 10)
     let^mx, my = love.mouse.getPosition()
-    love.graphics.circle("line", mx, my, 12)
+    love.graphics.circle(love.graphics.DrawMode.line, mx, my, 12)
 }
 
 public^let^keypressed = p^key:string^, scancode:string^, isrepeat:bool^{

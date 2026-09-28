@@ -225,7 +225,7 @@ static void lh_PS_setInsertMode(LhatMachine *machine, void *context, const LhatV
 {
 	(void) context;
 	PS_SELF();
-	std::string name = lh::optString(args, count, 1, "top");
+	std::string name = lh::optEnum(machine, args, count, 1, "love.graphics", "ParticleInsertMode", "top");
 	ParticleSystem::InsertMode mode;
 	if (!ParticleSystem::getConstant(name.c_str(), mode))
 	{
@@ -243,7 +243,7 @@ static void lh_PS_getInsertMode(LhatMachine *machine, void *context, const LhatV
 	const char *name = "top";
 	ParticleSystem::getConstant(ps->getInsertMode(), name);
 	LhatValue out = lhat_nil();
-	lh::makeString(machine, name, &out);
+	out = lh::pushEnum(machine, "love.graphics", "ParticleInsertMode", name);
 	answers[0] = out;
 	*answerCount = 1;
 }
@@ -280,7 +280,7 @@ static void lh_PS_setEmissionArea(LhatMachine *machine, void *context, const Lha
 {
 	(void) context;
 	PS_SELF();
-	std::string name = lh::optString(args, count, 1, "none");
+	std::string name = lh::optEnum(machine, args, count, 1, "love.graphics", "AreaSpreadDistribution", "none");
 	ParticleSystem::AreaSpreadDistribution distribution;
 	if (!ParticleSystem::getConstant(name.c_str(), distribution))
 	{
@@ -462,6 +462,15 @@ static void lh_PS_setRelativeRotation(LhatMachine *machine, void *context, const
 
 bool lhGraphicsParticleSystem(lh::Context &ctx)
 {
+	using namespace love::graphics;
+	if (ctx.types())
+	{
+		if (!ctx.enumType("love.graphics", "ParticleInsertMode", ParticleSystem::getConstants(ParticleSystem::InsertMode{})))
+			return false;
+		if (!ctx.enumType("love.graphics", "AreaSpreadDistribution", ParticleSystem::getConstants(ParticleSystem::AreaSpreadDistribution{})))
+			return false;
+	}
+
 	const char *m = LH_GRAPHICS;
 	if (!ctx.objectType(m, "ParticleSystem", ParticleSystem::type, m, "Drawable"))
 		return false;
@@ -482,8 +491,8 @@ bool lhGraphicsParticleSystem(lh::Context &ctx)
 		&& ctx.member(m, P, "getTexture", "p^self^ -> love.graphics.Texture;", lh_PS_getTexture, nullptr)
 		&& ctx.member(m, P, "setBufferSize", setNum, lh_PS_setBufferSize, nullptr)
 		&& ctx.member(m, P, "getBufferSize", num, lh_PS_getBufferSize, nullptr)
-		&& ctx.member(m, P, "setInsertMode", "p^self^, string^;", lh_PS_setInsertMode, nullptr)
-		&& ctx.member(m, P, "getInsertMode", "f^self^ -> string^;", lh_PS_getInsertMode, nullptr)
+		&& ctx.member(m, P, "setInsertMode", "p^self^, love.graphics.ParticleInsertMode;", lh_PS_setInsertMode, nullptr)
+		&& ctx.member(m, P, "getInsertMode", "f^self^ -> love.graphics.ParticleInsertMode;", lh_PS_getInsertMode, nullptr)
 		&& ctx.member(m, P, "setEmissionRate", setNum, lh_PS_setEmissionRate, nullptr)
 		&& ctx.member(m, P, "getEmissionRate", num, lh_PS_getEmissionRate, nullptr)
 		&& ctx.member(m, P, "setEmitterLifetime", setNum, lh_PS_setEmitterLifetime, nullptr)
@@ -494,10 +503,10 @@ bool lhGraphicsParticleSystem(lh::Context &ctx)
 		&& ctx.member(m, P, "setPosition", "p^self^, number^, number^;", lh_PS_setPosition, nullptr)
 		&& ctx.member(m, P, "getPosition", pair, lh_PS_getPosition, nullptr)
 		&& ctx.member(m, P, "moveTo", "p^self^, number^, number^;", lh_PS_moveTo, nullptr)
-		&& ctx.member(m, P, "setEmissionArea", "p^self^, string^;", lh_PS_setEmissionArea, nullptr)
-		&& ctx.member(m, P, "setEmissionArea", "p^self^, string^, number^, number^;", lh_PS_setEmissionArea, nullptr)
-		&& ctx.member(m, P, "setEmissionArea", "p^self^, string^, number^, number^, number^;", lh_PS_setEmissionArea, nullptr)
-		&& ctx.member(m, P, "setEmissionArea", "p^self^, string^, number^, number^, number^, bool^;", lh_PS_setEmissionArea, nullptr)
+		&& ctx.member(m, P, "setEmissionArea", "p^self^, love.graphics.AreaSpreadDistribution;", lh_PS_setEmissionArea, nullptr)
+		&& ctx.member(m, P, "setEmissionArea", "p^self^, love.graphics.AreaSpreadDistribution, number^, number^;", lh_PS_setEmissionArea, nullptr)
+		&& ctx.member(m, P, "setEmissionArea", "p^self^, love.graphics.AreaSpreadDistribution, number^, number^, number^;", lh_PS_setEmissionArea, nullptr)
+		&& ctx.member(m, P, "setEmissionArea", "p^self^, love.graphics.AreaSpreadDistribution, number^, number^, number^, bool^;", lh_PS_setEmissionArea, nullptr)
 		&& ctx.member(m, P, "setDirection", setNum, lh_PS_setDirection, nullptr)
 		&& ctx.member(m, P, "getDirection", num, lh_PS_getDirection, nullptr)
 		&& ctx.member(m, P, "setSpread", setNum, lh_PS_setSpread, nullptr)
@@ -610,7 +619,7 @@ static void lh_TextBatch_setf(LhatMachine *machine, void *context, const LhatVal
 	TEXT_SELF();
 	std::string s = lh::optString(args, count, 1, "");
 	float wrap = (float) lh::optNumber(args, count, 2, 0);
-	std::string alignstr = lh::optString(args, count, 3, "left");
+	std::string alignstr = lh::optEnum(machine, args, count, 3, "love.graphics", "AlignMode", "left");
 	Font::AlignMode align;
 	if (!Font::getConstant(alignstr.c_str(), align))
 	{
@@ -641,7 +650,7 @@ static void lh_TextBatch_addf(LhatMachine *machine, void *context, const LhatVal
 	TEXT_SELF();
 	std::string s = lh::optString(args, count, 1, "");
 	float wrap = (float) lh::optNumber(args, count, 2, 0);
-	std::string alignstr = lh::optString(args, count, 3, "left");
+	std::string alignstr = lh::optEnum(machine, args, count, 3, "love.graphics", "AlignMode", "left");
 	Font::AlignMode align;
 	if (!Font::getConstant(alignstr.c_str(), align))
 	{
@@ -729,9 +738,9 @@ bool lhGraphicsTextBatch(lh::Context &ctx)
 	return ctx.func(m, "newTextBatch", "p^love.graphics.Font -> love.graphics.TextBatch;", lh_newTextBatch, nullptr)
 		&& ctx.func(m, "newTextBatch", "p^love.graphics.Font, string^ -> love.graphics.TextBatch;", lh_newTextBatch, nullptr)
 		&& ctx.member(m, T, "set", "p^self^, string^;", lh_TextBatch_set, nullptr)
-		&& ctx.member(m, T, "setf", "p^self^, string^, number^, string^;", lh_TextBatch_setf, nullptr)
+		&& ctx.member(m, T, "setf", "p^self^, string^, number^, love.graphics.AlignMode;", lh_TextBatch_setf, nullptr)
 		&& ctx.member(m, T, "add", "p^self^, string^, number^, number^, ... -> number^;", lh_TextBatch_add, nullptr)
-		&& ctx.member(m, T, "addf", "p^self^, string^, number^, string^, number^, number^, ... -> number^;", lh_TextBatch_addf, nullptr)
+		&& ctx.member(m, T, "addf", "p^self^, string^, number^, love.graphics.AlignMode, number^, number^, ... -> number^;", lh_TextBatch_addf, nullptr)
 		&& ctx.member(m, T, "clear", "p^self^;", lh_TextBatch_clear, nullptr)
 		&& ctx.member(m, T, "setFont", "p^self^, love.graphics.Font;", lh_TextBatch_setFont, nullptr)
 		&& ctx.member(m, T, "getFont", "p^self^ -> love.graphics.Font;", lh_TextBatch_getFont, nullptr)

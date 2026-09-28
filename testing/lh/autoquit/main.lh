@@ -16,7 +16,7 @@ public^let^update = p^dt:number^{
 
 public^let^draw = p^{
     love.graphics.setColor(0.2, 0.8, 0.4)
-    love.graphics.rectangle("fill", x, 80, 40, 40)
+    love.graphics.rectangle(love.graphics.DrawMode.fill, x, 80, 40, 40)
     love.graphics.setColor(1, 1, 1)
     love.graphics.print($"frame {frames}", 10, 10)
 }

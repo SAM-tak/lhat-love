@@ -143,7 +143,7 @@ static void lh_getInfo(LhatMachine *machine, void *context, const LhatValue *arg
 	LhatValue key = lhat_nil(), value = lhat_nil();
 	bool refused = false;
 	lh::makeString(machine, "type", &key);
-	lh::makeString(machine, typestr, &value);
+	value = lh::pushEnum(machine, "love.filesystem", "FileType", typestr);
 	lhat_table_set(t, key, value, &refused);
 	lh::makeString(machine, "size", &key);
 	lhat_table_set(t, key, lhat_integer(info.size), &refused);
@@ -377,7 +377,7 @@ static void lh_newFile(LhatMachine *machine, void *context, const LhatValue *arg
 	File::Mode mode = File::MODE_CLOSED;
 	if (count > 1)
 	{
-		std::string modestr = lh::optString(arguments, count, 1, "");
+		std::string modestr = lh::optEnum(machine, arguments, count, 1, "love.filesystem", "FileMode", "");
 		if (!File::getConstant(modestr.c_str(), mode))
 		{
 			lh::raise(machine, "Invalid file open mode: " + modestr);
@@ -404,7 +404,7 @@ static void lh_File_open(LhatMachine *machine, void *context, const LhatValue *a
 		*answerCount = 1;
 		return;
 	}
-	std::string modestr = lh::optString(arguments, count, 1, "r");
+	std::string modestr = lh::optEnum(machine, arguments, count, 1, "love.filesystem", "FileMode", "r");
 	File::Mode mode;
 	if (!File::getConstant(modestr.c_str(), mode))
 	{
@@ -593,6 +593,14 @@ namespace lh
 bool lhopen_love_filesystem(Context &ctx)
 {
 	using namespace love::filesystem;
+	if (ctx.types())
+	{
+		if (!ctx.enumType("love.filesystem", "FileType", Filesystem::getConstants(Filesystem::FileType{})))
+			return false;
+		if (!ctx.enumType("love.filesystem", "FileMode", File::getConstants(File::Mode{})))
+			return false;
+	}
+
 	const char *m = "love.filesystem";
 
 	// 04 の 2.4: what love.filesystem can fail at, declared where it fails.
@@ -620,7 +628,7 @@ bool lhopen_love_filesystem(Context &ctx)
 		&& ctx.func(m, "write", "p^string^, string^ -> nil^|love.filesystem.Error.IO;", lh_write, b)
 		&& ctx.func(m, "append", "p^string^, string^ -> nil^|love.filesystem.Error.IO;", lh_append, b)
 		&& ctx.func(m, "exists", "f^string^ -> bool^;", lh_exists, b)
-		&& ctx.func(m, "getInfo", "f^string^ -> t^{ type : string^, size : number^, modtime : number^, readonly : bool^ }|nil^;", lh_getInfo, b)
+		&& ctx.func(m, "getInfo", "f^string^ -> t^{ type : love.filesystem.FileType, size : number^, modtime : number^, readonly : bool^ }|nil^;", lh_getInfo, b)
 		&& ctx.func(m, "getDirectoryItems", "f^string^ -> t^{string^[]};", lh_getDirectoryItems, b)
 		&& ctx.func(m, "createDirectory", "p^string^ -> bool^;", lh_createDirectory, b)
 		&& ctx.func(m, "remove", "p^string^ -> bool^;", lh_remove, b)
@@ -636,8 +644,8 @@ bool lhopen_love_filesystem(Context &ctx)
 		&& ctx.func(m, "getRealDirectory", "f^string^ -> string^|nil^;", lh_getRealDirectory, b)
 		&& ctx.func(m, "load", "p^string^ -> p^... -> any^; | love.filesystem.Error;", lh_load, b)
 		&& ctx.func(m, "newFile", "p^string^ -> love.filesystem.File|love.filesystem.Error.IO;", lh_newFile, b)
-		&& ctx.func(m, "newFile", "p^string^, string^ -> love.filesystem.File|love.filesystem.Error.IO;", lh_newFile, b)
-		&& ctx.member(m, "File", "open", "p^self^, string^ -> bool^|love.filesystem.Error.IO;", lh_File_open, b)
+		&& ctx.func(m, "newFile", "p^string^, love.filesystem.FileMode -> love.filesystem.File|love.filesystem.Error.IO;", lh_newFile, b)
+		&& ctx.member(m, "File", "open", "p^self^, love.filesystem.FileMode -> bool^|love.filesystem.Error.IO;", lh_File_open, b)
 		&& ctx.member(m, "File", "close", "p^self^ -> bool^;", lh_File_close, b)
 		&& ctx.member(m, "File", "isOpen", "f^self^ -> bool^;", lh_File_isOpen, b)
 		&& ctx.member(m, "File", "read", "p^self^ -> string^|love.filesystem.Error.IO;", lh_File_read, b)

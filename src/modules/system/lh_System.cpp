@@ -87,7 +87,7 @@ static void lh_getPowerInfo(LhatMachine *machine, void *context, const LhatValue
 	const char *name = "unknown";
 	System::getConstant(state, name);
 	answers[0] = lhat_nil();
-	lh::makeString(machine, name, &answers[0]);
+	answers[0] = lh::pushEnum(machine, "love.system", "PowerState", name);
 	answers[1] = lhat_integer(seconds);
 	answers[2] = lhat_integer(percent);
 	*answerCount = 3;
@@ -154,16 +154,22 @@ namespace lh
 
 bool lhopen_love_system(Context &ctx)
 {
+	using namespace love::system;
+	if (ctx.types())
+	{
+		if (!ctx.enumType("love.system", "PowerState", System::POWER_MAX_ENUM, System::getConstant))
+			return false;
+	}
+
 	if (ctx.types())
 		return true;
 
-	using namespace love::system;
 	const char *m = "love.system";
 	return ctx.func(m, "getOS", "f^ -> string^;", lh_getOS, nullptr)
 		&& ctx.func(m, "getProcessorCount", "f^ -> number^;", lh_getProcessorCount, nullptr)
 		&& ctx.func(m, "setClipboardText", "p^string^;", lh_setClipboardText, nullptr)
 		&& ctx.func(m, "getClipboardText", "p^ -> string^;", lh_getClipboardText, nullptr)
-		&& ctx.func(m, "getPowerInfo", "p^ -> (string^, number^, number^);", lh_getPowerInfo, nullptr)
+		&& ctx.func(m, "getPowerInfo", "p^ -> (love.system.PowerState, number^, number^);", lh_getPowerInfo, nullptr)
 		&& ctx.func(m, "openURL", "p^string^ -> bool^;", lh_openURL, nullptr)
 		&& ctx.func(m, "vibrate", "p^number^;", lh_vibrate, nullptr)
 		&& ctx.func(m, "hasBackgroundMusic", "f^ -> bool^;", lh_hasBackgroundMusic, nullptr)

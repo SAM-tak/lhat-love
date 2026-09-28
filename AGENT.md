@@ -61,6 +61,7 @@ L^ ランタイムの場所は CMake オプション `LHATOVE_LHAT_DIR`（デフ
 
 ```powershell
 .\build\love\Release\lovec.exe --compile-game out\mygame game\    # ユニット→バイト列、conf.lton も、他のファイルはそのまま複製
+.\build\love\Release\lovec.exe --compile -o out\modules game\fighter.lh # ソースと require^ 先のみ。通常のライブラリも可、実行しない
 .\build-vmonly\love\Release\lovec.exe out\mygame                  # 走る
 ```
 
@@ -115,6 +116,7 @@ Windows のみ。公開リポジトリなので標準ランナーは無料。`.g
 - **program の書込ロックは lhat が持つ**: `Runtime` のコンストラクタが `lhat_program_set_lock` に lhatove の mutex を渡す。だから check / compile / load / install / invalidate / reload の全部が覆われ、**std.thread のワーカーが自分でする install** も含まれる。対は**入れ子にならない** — 呼ぶ側が手でロックを取ってはいけない。危険な再入は 1 経路だけで、**ホストの loader はロック保持中に呼ばれる**（`lhat_program_check` の内側）ので、`PhysfsLoader` は program に触れてはならない
 - エラー宣言はモジュールごと（04 の 2.4）。失敗しうるモジュールが TYPES 相で `ctx.errorKind(m, variants, n, out)` を呼び、`love.<module>.Error` を宣言する。variant は**何が起きたか**で命名する（`CouldNotLoad` / `ShaderFailed` / `Rejected`。「どの層が気づいたか」を表す `IO` / `Misuse` を全モジュールで共有しない）。1 variant なら葉を書かず宣言名だけでシグネチャに載る（`-> love.audio.Source|love.audio.Error`）。受け側は宣言名でも葉でも `fits^` で絞れる
 - プログラマエラー（不正な enum 等）は `lh::raise` = `lhat_machine_panic_text`。失敗しうる API（IO 等）だけがエラー値をシグネチャに書く
+- 固定候補のモード・種別は文字列で公開せず **L^ enum** にする。TYPES 相で `ctx.enumType` にエンジンの `getConstants`（または上限と `getConstant`）を渡し、署名には `love.graphics.DrawMode` などの宣言名を書く。入力は `enumName` / `optEnum` で宣言の同一性を確認し、戻り値・イベントは `pushEnum` で登録済みメンバを返す。メンバ名は既存の定数文字列と同じ。パス・任意のテキストや `conf.lton` の値まで enum にしない
 - ホスト関数は `void`（`16caa92`）。答えは machine が渡す room に書く — `answers[0] = v; *answerCount = 1;`、タプルなら `answers[0..n]` と `*answerCount = n`。`*answerCount` は 0 で届くので `p^` と `dispose` は何もせず返る。`LHAT_MAX_TUPLE` より広い戻り値は登録が拒否されるので、room があふれることはない
 - `lh::guard` / `lh::catchexcept` は void 本体を取る（答えは本体が room に書き終えている）。`catchexcept` だけ room を受け取る — 例外が起きたら書かれたものをエラー値 1 個に差し替えるため。`lh::raise` は panic なので、呼んで `return;` するだけ
 - メインループは埋め込み `Boot.lh` の `run`（yieldable `p^`）。C++ は `lhat_machine_resume` を毎フレーム呼ぶだけ。optional なコールバックの解決は C++ 側の handlers 構築で行う（L^ では「あれば呼ぶ」を静的に書けない）
@@ -183,7 +185,8 @@ lhat 側で直すべき事項は @docs/porting/lhat-issues.md に記録する。
 .\build\love\Release\lovec.exe testing\lh\autoquit   # 90 フレームで自動終了、exit=3
 .\build\love\Release\lovec.exe testing\lh\customrun  # run オーバーライド、exit=5
 .\build\love\Release\lovec.exe testing\lh\panic      # update 内 panic^ → traceback
-.\build\love\Release\lovec.exe testing\lh\raise      # 不正な draw mode → ホスト発 panic
+.\build\love\Release\lovec.exe --no-error-screen testing\lh\panic # stderr に traceback、終了コード 1。AI/CI テストではこちらを使う
+.\build\love\Release\lovec.exe testing\lh\raise      # 存在しない DrawMode メンバ → 型検査で拒否
 .\build\love\Release\lovec.exe testing\lh\badcallback # update の型違い → 起動前に診断
 $env:LHATOVE_GC_STATS=120; .\build\love\Release\lovec.exe testing\lh\customrun # 120 フレーム毎に GC 統計（collected / live）
 # VM のみビルド（front end 無し。ゲームは先にコンパイルする）

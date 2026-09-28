@@ -217,7 +217,7 @@ static void lh_Body_getType(LhatMachine *machine, void *context, const LhatValue
 	const char *type = nullptr;
 	Body::getConstant(b->getType(), type);
 	LhatValue out = lhat_nil();
-	lh::makeString(machine, type != nullptr ? type : "", &out);
+	out = lh::pushEnum(machine, "love.physics", "BodyType", type != nullptr ? type : "");
 	answers[0] = out;
 	*answerCount = 1;
 }
@@ -227,7 +227,7 @@ static void lh_Body_setType(LhatMachine *machine, void *context, const LhatValue
 {
 	(void) context;
 	BODY_SELF();
-	std::string name = lh::optString(args, count, 1, "");
+	std::string name = lh::optEnum(machine, args, count, 1, "love.physics", "BodyType", "");
 	Body::Type type;
 	if (!Body::getConstant(name.c_str(), type))
 	{
@@ -537,7 +537,7 @@ bool lhPhysicsBody(lh::Context &ctx)
 		&& ctx.member(m, B, "getAngularDamping", "f^self^ -> number^;", lh_Body_getAngularDamping, nullptr)
 		&& ctx.member(m, B, "getLinearDamping", "f^self^ -> number^;", lh_Body_getLinearDamping, nullptr)
 		&& ctx.member(m, B, "getGravityScale", "f^self^ -> number^;", lh_Body_getGravityScale, nullptr)
-		&& ctx.member(m, B, "getType", "f^self^ -> string^;", lh_Body_getType, nullptr)
+		&& ctx.member(m, B, "getType", "f^self^ -> love.physics.BodyType;", lh_Body_getType, nullptr)
 		&& ctx.member(m, B, "applyLinearImpulse", "p^self^, number^, number^;", lh_Body_applyLinearImpulse, nullptr)
 		&& ctx.member(m, B, "applyLinearImpulse", "p^self^, number^, number^, bool^;", lh_Body_applyLinearImpulse, nullptr)
 		&& ctx.member(m, B, "applyLinearImpulse", "p^self^, number^, number^, number^, number^;", lh_Body_applyLinearImpulse, nullptr)
@@ -564,7 +564,7 @@ bool lhPhysicsBody(lh::Context &ctx)
 		&& ctx.member(m, B, "setAngularDamping", "p^self^, number^;", lh_Body_setAngularDamping, nullptr)
 		&& ctx.member(m, B, "setLinearDamping", "p^self^, number^;", lh_Body_setLinearDamping, nullptr)
 		&& ctx.member(m, B, "setGravityScale", "p^self^, number^;", lh_Body_setGravityScale, nullptr)
-		&& ctx.member(m, B, "setType", "p^self^, string^;", lh_Body_setType, nullptr)
+		&& ctx.member(m, B, "setType", "p^self^, love.physics.BodyType;", lh_Body_setType, nullptr)
 		&& ctx.member(m, B, "getWorldPoint", "f^self^, number^, number^ -> (number^, number^);", lh_Body_getWorldPoint, nullptr)
 		&& ctx.member(m, B, "getWorldVector", "f^self^, number^, number^ -> (number^, number^);", lh_Body_getWorldVector, nullptr)
 		&& ctx.member(m, B, "getWorldPoints", "f^self^, ... -> t^{number^[]};", lh_Body_getWorldPoints, nullptr)

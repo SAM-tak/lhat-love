@@ -32,7 +32,7 @@ namespace sensor
 
 static bool sensorOf(LhatMachine *machine, const LhatValue *arguments, size_t count, Sensor::SensorType &type)
 {
-	std::string name = lh::optString(arguments, count, 0, "");
+	std::string name = lh::optEnum(machine, arguments, count, 0, "love.sensor", "SensorType", "");
 	if (!Sensor::getConstant(name.c_str(), type))
 	{
 		lh::raise(machine, "Invalid sensor type: " + name);
@@ -110,15 +110,21 @@ namespace lh
 
 bool lhopen_love_sensor(Context &ctx)
 {
+	using namespace love::sensor;
+	if (ctx.types())
+	{
+		if (!ctx.enumType("love.sensor", "SensorType", Sensor::getConstants(Sensor::SensorType{})))
+			return false;
+	}
+
 	if (ctx.types())
 		return true;
 
-	using namespace love::sensor;
 	const char *m = "love.sensor";
-	return ctx.func(m, "hasSensor", "f^string^ -> bool^;", lh_hasSensor, nullptr)
-		&& ctx.func(m, "isEnabled", "f^string^ -> bool^;", lh_isEnabled, nullptr)
-		&& ctx.func(m, "setEnabled", "p^string^, bool^;", lh_setEnabled, nullptr)
-		&& ctx.func(m, "getData", "p^string^ -> (number^, number^, number^);", lh_getData, nullptr);
+	return ctx.func(m, "hasSensor", "f^love.sensor.SensorType -> bool^;", lh_hasSensor, nullptr)
+		&& ctx.func(m, "isEnabled", "f^love.sensor.SensorType -> bool^;", lh_isEnabled, nullptr)
+		&& ctx.func(m, "setEnabled", "p^love.sensor.SensorType, bool^;", lh_setEnabled, nullptr)
+		&& ctx.func(m, "getData", "p^love.sensor.SensorType -> (number^, number^, number^);", lh_getData, nullptr);
 }
 
 } // lh

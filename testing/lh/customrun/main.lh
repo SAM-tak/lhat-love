@@ -24,7 +24,7 @@ public^let^draw = p^{
     # Radians throughout: std.math and love.graphics agree (lhat abe8c9b).
     love.graphics.rotate(angle)
     love.graphics.setColor(0.9, 0.8, 0.2)
-    love.graphics.rectangle("fill", -40, -40, 80, 80)
+    love.graphics.rectangle(love.graphics.DrawMode.fill, -40, -40, 80, 80)
     love.graphics.pop()
     love.graphics.setColor(1, 1, 1)
     love.graphics.print($"custom run, frame {frames}", 10, 10)

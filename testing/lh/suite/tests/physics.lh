@@ -30,12 +30,12 @@ public^let^run = p^{
     test.number("no bodies yet", 0, world.getBodyCount())
 
     # bodies
-    let^ground, groundShape = love.physics.newRectangleBody(world, "static", 200, 400, 400, 20)
-    let^box, boxShape = love.physics.newRectangleBody(world, "dynamic", 200, 100, 40, 40)
-    let^ball, ballShape = love.physics.newCircleBody(world, "dynamic", 260, 100, 20)
+    let^ground, groundShape = love.physics.newRectangleBody(world, love.physics.BodyType.static, 200, 400, 400, 20)
+    let^box, boxShape = love.physics.newRectangleBody(world, love.physics.BodyType.dynamic, 200, 100, 40, 40)
+    let^ball, ballShape = love.physics.newCircleBody(world, love.physics.BodyType.dynamic, 260, 100, 20)
     test.number("three bodies", 3, world.getBodyCount())
-    test.text("body type", "static", ground.getType())
-    test.text("dynamic body type", "dynamic", box.getType())
+    test.isTrue("body type", love.physics.BodyType.static = ground.getType())
+    test.isTrue("dynamic body type", love.physics.BodyType.dynamic = box.getType())
     test.isTrue("a dynamic body has mass", box.getMass() > 0)
     test.number("the ground has none", 0, ground.getMass())
 
@@ -79,8 +79,8 @@ public^let^run = p^{
     test.number("getWorldPoints answers a pair per point", 4, points.length^)
 
     # shapes
-    test.text("shape type", "polygon", boxShape.getType())
-    test.text("circle shape type", "circle", ballShape.getType())
+    test.isTrue("shape type", love.physics.ShapeType.polygon = boxShape.getType())
+    test.isTrue("circle shape type", love.physics.ShapeType.circle = ballShape.getType())
     test.number("the circle's radius", 20, ballShape.getRadius())
     test.isTrue("a shape knows its body", ballShape.getBody() = ball)
     test.number("the body knows its shapes", 1, box.getShapes().length^)
@@ -144,7 +144,7 @@ public^let^run = p^{
 
     # joints
     let^joint = love.physics.newDistanceJoint(box, ball, 200, 100, 260, 100, false^)
-    test.text("joint type", "distance", joint.getType())
+    test.isTrue("joint type", love.physics.JointType.distance = joint.getType())
     test.number("the joint's length", 60, joint.getLength())
     let^ax1, ay1, ax2, ay2 = joint.getAnchors()
     test.number("anchor x", 200, ax1)

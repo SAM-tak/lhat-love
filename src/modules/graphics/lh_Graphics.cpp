@@ -71,7 +71,7 @@ Matrix4 transformOf(const LhatValue *args, size_t count, size_t first)
 
 bool drawModeOf(LhatMachine *machine, LhatValue value, Graphics::DrawMode &mode)
 {
-	const char *name = lh::stringOf(value);
+	const char *name = lh::enumName(machine, value, "love.graphics", "DrawMode");
 	if (name == nullptr || !Graphics::getConstant(name, mode))
 	{
 		lh::raise(machine, std::string("Invalid draw mode: ") + (name != nullptr ? name : "(not a string)"));
@@ -415,9 +415,9 @@ static void lh_printf(LhatMachine *machine, void *context, const LhatValue *argu
 
 	Font::AlignMode align = Font::ALIGN_LEFT;
 	size_t rest = at + 3;
-	if (count > rest && lh::stringOf(arguments[rest]) != nullptr)
+	if (count > rest && !lhat_is_number(arguments[rest]))
 	{
-		const char *name = lh::stringOf(arguments[rest]);
+		const char *name = lh::enumName(machine, arguments[rest], "love.graphics", "AlignMode");
 		if (!Font::getConstant(name, align))
 		{
 			lh::raise(machine, std::string("Invalid align mode: ") + name);
@@ -646,8 +646,8 @@ static void lh_Texture_setFilter(LhatMachine *machine, void *context, const Lhat
 	if (t == nullptr)
 		return;
 	SamplerState s = t->getSamplerState();
-	std::string minstr = lh::optString(arguments, count, 1, "linear");
-	std::string magstr = lh::optString(arguments, count, 2, minstr);
+	std::string minstr = lh::optEnum(machine, arguments, count, 1, "love.graphics", "FilterMode", "linear");
+	std::string magstr = lh::optEnum(machine, arguments, count, 2, "love.graphics", "FilterMode", minstr);
 	if (!SamplerState::getConstant(minstr.c_str(), s.minFilter))
 	{
 		lh::raise(machine, "Invalid filter mode: " + minstr);
@@ -823,6 +823,37 @@ namespace lh
 bool lhopen_love_graphics(Context &ctx)
 {
 	using namespace love::graphics;
+	if (ctx.types())
+	{
+		if (!ctx.enumType("love.graphics", "PixelFormat", PIXELFORMAT_MAX_ENUM, getConstant)
+			|| !ctx.enumType("love.graphics", "MipmapMode", Texture::getConstants(Texture::MipmapsMode{})))
+			return false;
+		if (!ctx.enumType("love.graphics", "DrawMode", Graphics::getConstants(Graphics::DrawMode{})))
+			return false;
+		if (!ctx.enumType("love.graphics", "ArcMode", Graphics::getConstants(Graphics::ArcMode{})))
+			return false;
+		if (!ctx.enumType("love.graphics", "LineStyle", Graphics::getConstants(Graphics::LineStyle{})))
+			return false;
+		if (!ctx.enumType("love.graphics", "LineJoin", Graphics::getConstants(Graphics::LineJoin{})))
+			return false;
+		if (!ctx.enumType("love.graphics", "AlignMode", Font::getConstants(Font::AlignMode{})))
+			return false;
+		if (!ctx.enumType("love.graphics", "FilterMode", SamplerState::getConstants(SamplerState::FilterMode{})))
+			return false;
+		if (!ctx.enumType("love.graphics", "WrapMode", SamplerState::getConstants(SamplerState::WrapMode{})))
+			return false;
+		if (!ctx.enumType("love.graphics", "BlendMode", getConstants(BlendMode{})))
+			return false;
+		if (!ctx.enumType("love.graphics", "BlendAlphaMode", getConstants(BlendAlpha{})))
+			return false;
+		if (!ctx.enumType("love.graphics", "StencilMode", getConstants(StencilMode{})))
+			return false;
+		if (!ctx.enumType("love.graphics", "MeshDrawMode", getConstants(PrimitiveType{})))
+			return false;
+		if (!ctx.enumType("love.graphics", "Usage", getConstants(BufferDataUsage{})))
+			return false;
+	}
+
 	const char *m = "love.graphics";
 
 	// 04 の 2.4: what love.graphics can fail at, declared where it fails.
@@ -863,17 +894,21 @@ bool lhopen_love_graphics(Context &ctx)
 		&& ctx.func(m, "getBackgroundColor", "f^ -> (number^, number^, number^, number^);", lh_getBackgroundColor, nullptr)
 		&& ctx.func(m, "setLineWidth", "p^number^;", lh_setLineWidth, nullptr)
 		&& ctx.func(m, "getLineWidth", "f^ -> number^;", lh_getLineWidth, nullptr)
-		&& ctx.func(m, "rectangle", "p^string^, number^, number^, number^, number^, ...;", lh_rectangle, nullptr)
-		&& ctx.func(m, "circle", "p^string^, number^, number^, number^, ...;", lh_circle, nullptr)
+		&& ctx.func(m, "rectangle", "p^love.graphics.DrawMode, number^, number^, number^, number^, ...;", lh_rectangle, nullptr)
+		&& ctx.func(m, "circle", "p^love.graphics.DrawMode, number^, number^, number^, ...;", lh_circle, nullptr)
 		&& ctx.func(m, "line", "p^number^, number^, number^, number^, ...;", lh_line, nullptr)
-		&& ctx.func(m, "polygon", "p^string^, ...;", lh_polygon, nullptr)
+		&& ctx.func(m, "polygon", "p^love.graphics.DrawMode, ...;", lh_polygon, nullptr)
 		&& ctx.func(m, "points", "p^number^, number^, ...;", lh_points, nullptr)
 		&& ctx.func(m, "setPointSize", "p^number^;", lh_setPointSize, nullptr)
 		&& ctx.func(m, "print", "p^string^;", lh_print, nullptr)
 		&& ctx.func(m, "print", "p^string^, number^, ...;", lh_print, nullptr)
 		&& ctx.func(m, "print", "p^string^, love.graphics.Font, ...;", lh_print, nullptr)
-		&& ctx.func(m, "printf", "p^string^, number^, number^, number^, ...;", lh_printf, nullptr)
-		&& ctx.func(m, "printf", "p^string^, love.graphics.Font, number^, number^, number^, ...;", lh_printf, nullptr)
+		&& ctx.func(m, "printf", "p^string^, number^, number^, number^;", lh_printf, nullptr)
+		&& ctx.func(m, "printf", "p^string^, number^, number^, number^, number^, ...;", lh_printf, nullptr)
+		&& ctx.func(m, "printf", "p^string^, number^, number^, number^, love.graphics.AlignMode, ...;", lh_printf, nullptr)
+		&& ctx.func(m, "printf", "p^string^, love.graphics.Font, number^, number^, number^;", lh_printf, nullptr)
+		&& ctx.func(m, "printf", "p^string^, love.graphics.Font, number^, number^, number^, number^, ...;", lh_printf, nullptr)
+		&& ctx.func(m, "printf", "p^string^, love.graphics.Font, number^, number^, number^, love.graphics.AlignMode, ...;", lh_printf, nullptr)
 		&& ctx.func(m, "push", "p^;", lh_push, nullptr)
 		&& ctx.func(m, "pop", "p^;", lh_pop, nullptr)
 		&& ctx.func(m, "translate", "p^number^, number^;", lh_translate, nullptr)
@@ -886,7 +921,8 @@ bool lhopen_love_graphics(Context &ctx)
 		&& ctx.member(m, "Texture", "getWidth", "f^self^ -> number^;", lh_Texture_getWidth, nullptr)
 		&& ctx.member(m, "Texture", "getHeight", "f^self^ -> number^;", lh_Texture_getHeight, nullptr)
 		&& ctx.member(m, "Texture", "getDimensions", "f^self^ -> (number^, number^);", lh_Texture_getDimensions, nullptr)
-		&& ctx.member(m, "Texture", "setFilter", "p^self^, string^, ...;", lh_Texture_setFilter, nullptr)
+		&& ctx.member(m, "Texture", "setFilter", "p^self^, love.graphics.FilterMode;", lh_Texture_setFilter, nullptr)
+		&& ctx.member(m, "Texture", "setFilter", "p^self^, love.graphics.FilterMode, love.graphics.FilterMode;", lh_Texture_setFilter, nullptr)
 		&& ctx.func(m, "draw", "p^love.graphics.Drawable;", lh_draw, nullptr)
 		&& ctx.func(m, "draw", "p^love.graphics.Drawable, number^, ...;", lh_draw, nullptr)
 		&& ctx.func(m, "draw", "p^love.graphics.Texture, love.graphics.Quad, ...;", lh_draw, nullptr)

@@ -92,6 +92,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <set>
 #include <string>
 #include <vector>
@@ -192,6 +193,7 @@ static bool registerStdlib(LhatProgram *program)
 // Something the user has to see. Text always; a message box as well for the
 // windowed executable, since nothing else would show it.
 static bool consoleBuild = false;
+static bool errorScreenEnabled = true;
 
 static void report(const std::string &title, const std::string &text)
 {
@@ -199,7 +201,7 @@ static void report(const std::string &title, const std::string &text)
 	if (!text.empty() && text.back() != '\n')
 		fputc('\n', stderr);
 	fflush(stderr);
-	if (!consoleBuild)
+	if (errorScreenEnabled && !consoleBuild)
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title.c_str(), text.c_str(), nullptr);
 }
 
@@ -263,16 +265,16 @@ static const Callback callbacks[] = {
 	{"joystickpressed", "p^love.joystick.Joystick, number^;"},
 	{"joystickreleased", "p^love.joystick.Joystick, number^;"},
 	{"joystickaxis", "p^love.joystick.Joystick, number^, number^;"},
-	{"joystickhat", "p^love.joystick.Joystick, number^, string^;"},
+	{"joystickhat", "p^love.joystick.Joystick, number^, love.joystick.JoystickHat;"},
 	{"joystickadded", "p^love.joystick.Joystick;"},
 	{"joystickremoved", "p^love.joystick.Joystick;"},
-	{"gamepadpressed", "p^love.joystick.Joystick, string^;"},
-	{"gamepadreleased", "p^love.joystick.Joystick, string^;"},
-	{"gamepadaxis", "p^love.joystick.Joystick, string^, number^;"},
+	{"gamepadpressed", "p^love.joystick.Joystick, love.joystick.GamepadButton;"},
+	{"gamepadreleased", "p^love.joystick.Joystick, love.joystick.GamepadButton;"},
+	{"gamepadaxis", "p^love.joystick.Joystick, love.joystick.GamepadAxis, number^;"},
 	{"touchpressed", "p^number^, number^, number^, number^, number^, number^, ...;"},
 	{"touchreleased", "p^number^, number^, number^, number^, number^, number^, ...;"},
 	{"touchmoved", "p^number^, number^, number^, number^, number^, number^, ...;"},
-	{"sensorupdated", "p^string^, number^, number^, number^;"},
+	{"sensorupdated", "p^love.sensor.SensorType, number^, number^, number^;"},
 	{"threaderror", "p^string^;"},
 	{"filedropped", "p^string^;"},
 	{"directorydropped", "p^string^;"},
@@ -595,10 +597,11 @@ static std::string checkAllUnits(Runtime &runtime, const std::string &dir)
 		if (!endsWith(path, ".lh"))
 			continue;
 		const LhatUnit *unit = lhat_program_check(runtime.program(), path.c_str());
-		if (unit == nullptr)
-			return "Could not read " + path;
-		if (!lhat_unit_ok(unit))
-			return path + " did not check; a compiled game carries no unit that does not";
+		if (unit == nullptr || !runtime.ok())
+		{
+			std::string said = runtime.diagnostics();
+			return said.empty() ? "Could not check " + path : said;
+		}
 	}
 	return std::string();
 }
@@ -637,21 +640,23 @@ static bool copyRest(const std::string &to, const std::string &dir,
 	return true;
 }
 
-// Writes every unit the program reached, plus conf.lton where the game has
-// one. Answers what to report, or an empty string when all of it went out.
-static std::string compileGame(Runtime &runtime, Loader &loader, const std::string &to,
-                               bool debugNames)
+// Source compilation writes only the reached units. Game compilation also
+// checks the remaining units and copies configuration and assets.
+static std::string compileOutput(Runtime &runtime, Loader &loader, const std::string &to,
+                                 bool debugNames, bool wholeGame)
 {
-#ifdef LOVE_WINDOWS
-	_mkdir(to.c_str());
-#else
-	mkdir(to.c_str(), 0777);
-#endif
-	std::string trouble = checkAllUnits(runtime, "");
-	if (!trouble.empty())
-		return trouble;
-	if (!lhat_program_compile(runtime.program()))
-		return "The game did not compile";
+	if (wholeGame)
+	{
+		std::string trouble = checkAllUnits(runtime, "");
+		if (!trouble.empty())
+			return trouble;
+		if (!lhat_program_compile(runtime.program()))
+			return runtime.compileDiagnostics();
+	}
+	std::error_code directoryError;
+	std::filesystem::create_directories(to, directoryError);
+	if (directoryError)
+		return "Could not create " + to + ": " + directoryError.message();
 
 	std::set<std::string> written;
 	for (const LhatUnit *u = lhat_program_units(runtime.program()); u != nullptr;
@@ -667,13 +672,18 @@ static std::string compileGame(Runtime &runtime, Loader &loader, const std::stri
 		uint8_t *bytes = nullptr;
 		size_t length = 0;
 		if (!lhat_unit_write_binary(u, debugNames, &bytes, &length))
-			return "Could not compile " + unit;
+			return "Could not serialize the compiled unit " + unit;
 		makeParents(to, unit);
 		bool ok = writeBytes(to + "/" + unit, bytes, length);
 		lhat_free(bytes);
 		if (!ok)
 			return "Could not write " + to + "/" + unit;
 		written.insert(unit);
+	}
+	if (!wholeGame)
+	{
+		printf("wrote %zu compiled units to %s\n", written.size(), to.c_str());
+		return std::string();
 	}
 
 	// 08 の 7改: conf.lton is data, so it goes through std.lton's own writer
@@ -728,7 +738,7 @@ static std::string dumpEmbedded(Runtime &runtime, Loader &loader, const std::str
 		uint8_t *bytes = nullptr;
 		size_t length = 0;
 		if (!lhat_unit_write_binary(u, debugNames, &bytes, &length))
-			return std::string("Could not compile ") + path;
+			return std::string("Could not serialize the compiled unit ") + path;
 		bool ok = writeBytes(to + "/" + path + ".bin", bytes, length);
 		lhat_free(bytes);
 		if (!ok)
@@ -1079,11 +1089,15 @@ struct Arguments
 	std::string game;     // directory, .love, or .lh file
 	bool fused = false;   // --fused
 	bool console = false; // --console
+	bool noErrorScreen = false; // --no-error-screen: stderr and exit on failure
 	bool dumpHostApi = false; // --dump-host-api [file]
 	std::string dumpPath = "lhat-host.json";
 	int dapPort = 0;      // --dap=PORT, 0 for no debugger
 	std::string signaturesPath; // --dump-signatures FILE
 	std::string compileTo;      // --compile-game DIR
+	bool compileRequested = false;
+	bool sourceCompile = false; // --compile -o DIR SOURCE.lh, without game callbacks or assets
+	std::string error;
 	std::string embedTo;        // --dump-embedded DIR
 	bool debugNames = false;    // --debug-names, with either of those
 };
@@ -1098,6 +1112,8 @@ static Arguments parseArguments(int argc, char **argv)
 			args.fused = true;
 		else if (a == "--console")
 			args.console = true;
+		else if (a == "--no-error-screen")
+			args.noErrorScreen = true;
 		else if (a == "--dump-host-api")
 		{
 			args.dumpHostApi = true;
@@ -1113,10 +1129,32 @@ static Arguments parseArguments(int argc, char **argv)
 			if (i + 1 < argc)
 				args.embedTo = argv[++i];
 		}
-		else if (a == "--compile-game")
+		else if (a == "--compile")
 		{
-			if (i + 1 < argc)
-				args.compileTo = argv[++i];
+			if (args.compileRequested && !args.sourceCompile)
+				args.error = "Choose either --compile or --compile-game.";
+			args.compileRequested = true;
+			args.sourceCompile = true;
+		}
+		else if (a == "--compile-game" || a == "-o" || a == "--output")
+		{
+			if (a == "--compile-game")
+			{
+				if (args.sourceCompile)
+					args.error = "Choose either --compile or --compile-game.";
+				args.compileRequested = true;
+			}
+			if (i + 1 >= argc || argv[i + 1][0] == '-')
+			{
+				args.error = a + " needs an output directory.";
+				return args;
+			}
+			if (!args.compileTo.empty())
+			{
+				args.error = "Specify the compile output directory only once.";
+				return args;
+			}
+			args.compileTo = argv[++i];
 		}
 		else if (a == "--dump-signatures")
 		{
@@ -1129,10 +1167,26 @@ static Arguments parseArguments(int argc, char **argv)
 			args.dapPort = (port > 0 && port < 65536) ? (int) port : 0;
 		}
 		else if (a == "--")
+		{
+			if (args.game.empty() && i + 1 < argc)
+				args.game = argv[i + 1];
 			break;
+		}
 		else if (args.game.empty() && (a.empty() || a[0] != '-'))
 			args.game = a;
 	}
+	if (!args.error.empty())
+		return args;
+	if (args.compileRequested && args.compileTo.empty())
+		args.error = "--compile needs -o DIR. Usage: lovec --compile -o DIR SOURCE.lh";
+	else if (!args.compileRequested && !args.compileTo.empty())
+		args.error = "-o / --output requires --compile.";
+	else if (args.compileRequested && args.game.empty())
+		args.error = "Compilation needs a game directory, .love archive, or .lh file.";
+	else if (args.sourceCompile && !endsWith(args.game, ".lh"))
+		args.error = "--compile expects a .lh source file. Use --compile-game DIR GAME to package a game.";
+	else if (args.compileRequested && (args.dumpHostApi || !args.embedTo.empty() || !args.signaturesPath.empty()))
+		args.error = "--compile cannot be combined with a dump option.";
 	return args;
 }
 
@@ -1144,7 +1198,7 @@ static void reportRuntime(const std::string &text)
 	if (!text.empty() && text.back() != '\n')
 		fputc('\n', stderr);
 	fflush(stderr);
-	if (!showErrorScreen(text) && !consoleBuild)
+	if (errorScreenEnabled && !showErrorScreen(text) && !consoleBuild)
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "lhatove: error", text.c_str(), nullptr);
 }
 
@@ -1154,6 +1208,12 @@ static int boot(int argc, char **argv, bool console)
 	tracing = getenv("LHATOVE_TRACE") != nullptr;
 	startWatchdog();
 	Arguments args = parseArguments(argc, argv);
+	errorScreenEnabled = !args.noErrorScreen && !args.compileRequested;
+	if (!args.error.empty())
+	{
+		report("lhatove: arguments", args.error);
+		return 1;
+	}
 
 	// A restart with a game dropped on the no-game screen runs that game;
 	// the payload stays for love.restartValue().
@@ -1264,6 +1324,11 @@ static int boot(int argc, char **argv, bool console)
 	fs->setIdentity(identity.c_str(), true);
 
 	bool noGameCode = canHasGame && !loader.exists(mainUnit) && !loader.exists("conf.lton");
+	if (args.compileRequested && (!canHasGame || !loader.exists(mainUnit)))
+	{
+		report("lhatove: compile failed", "Could not read " + args.game + " (entry unit " + mainUnit + ").");
+		return 1;
+	}
 
 	if (!canHasGame || noGameCode)
 	{
@@ -1346,10 +1411,10 @@ static int boot(int argc, char **argv, bool console)
 	// conf.lton is not among them: it is data, and lhatstdlib_lton_load reads
 	// it below once there is a machine to build the table on.
 	trace("checking Boot.lh");
-	const LhatUnit *bootUnit = runtime.check("Boot.lh");
+	const LhatUnit *bootUnit = args.sourceCompile ? nullptr : runtime.check("Boot.lh");
 	trace("checking main");
 	const LhatUnit *root = runtime.check(mainUnit.c_str());
-	if (bootUnit == nullptr || root == nullptr || !runtime.ok())
+	if ((!args.sourceCompile && bootUnit == nullptr) || root == nullptr || !runtime.ok())
 	{
 		std::string said = runtime.diagnostics();
 		if (said.empty())
@@ -1363,7 +1428,7 @@ static int boot(int argc, char **argv, bool console)
 	// It needs none: what was compiled was checked by the build that
 	// compiled it, and a binary reads back only into a program registered
 	// the way that one was.
-	if (!loader.isBinary(mainUnit))
+	if (!args.sourceCompile && !loader.isBinary(mainUnit))
 	{
 		std::string problems = checkCallbacks(root);
 		if (!problems.empty())
@@ -1376,11 +1441,11 @@ static int boot(int argc, char **argv, bool console)
 	trace("compiling");
 	if (!runtime.compile())
 	{
-		report("lhatove", "Could not compile the program.");
+		report("lhatove: compile failed", runtime.compileDiagnostics());
 		return 1;
 	}
 
-	// 05 の 10.8: with --compile-game the run stops here. Everything is
+	// 05 の 10.8: with --compile or --compile-game the run stops here. Everything is
 	// checked and compiled, which is all the writing needs, and nothing of
 	// the game has run.
 	if (!args.embedTo.empty())
@@ -1396,7 +1461,7 @@ static int boot(int argc, char **argv, bool console)
 
 	if (!args.compileTo.empty())
 	{
-		std::string trouble = compileGame(runtime, loader, args.compileTo, args.debugNames);
+		std::string trouble = compileOutput(runtime, loader, args.compileTo, args.debugNames, !args.sourceCompile);
 		if (!trouble.empty())
 		{
 			report("lhatove", trouble);

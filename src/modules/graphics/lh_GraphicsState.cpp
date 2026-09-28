@@ -67,13 +67,19 @@ static void lh_newCanvas(LhatMachine *machine, void *context, const LhatValue *a
 	{
 		LhatValue settings = args[2];
 		s.msaa = (int) lh::fieldNumber(machine, settings, "msaa", 1);
-		std::string format = lh::fieldString(machine, settings, "format", "");
+		LhatValue formatValue = lh::field(machine, settings, "format");
+		std::string format = lhat_is_nil(formatValue) ? "" : lh::enumName(machine, formatValue, "love.graphics", "PixelFormat");
+		if (!lhat_is_nil(formatValue) && format.empty())
+			return;
 		if (!format.empty() && !getConstant(format.c_str(), s.format))
 		{
 			lh::raise(machine, "Invalid pixel format: " + format);
 			return;
 		}
-		std::string mipmaps = lh::fieldString(machine, settings, "mipmaps", "");
+		LhatValue mipmapsValue = lh::field(machine, settings, "mipmaps");
+		std::string mipmaps = lhat_is_nil(mipmapsValue) ? "" : lh::enumName(machine, mipmapsValue, "love.graphics", "MipmapMode");
+		if (!lhat_is_nil(mipmapsValue) && mipmaps.empty())
+			return;
 		if (!mipmaps.empty() && !Texture::getConstant(mipmaps.c_str(), s.mipmaps))
 		{
 			lh::raise(machine, "Invalid mipmap mode: " + mipmaps);
@@ -190,7 +196,7 @@ static void lh_setBlendMode(LhatMachine *machine, void *context, const LhatValue
 							LhatValue *answers, int *answerCount)
 {
 	(void) context;
-	std::string modestr = lh::optString(args, count, 0, "alpha");
+	std::string modestr = lh::optEnum(machine, args, count, 0, "love.graphics", "BlendMode", "alpha");
 	BlendMode mode;
 	if (!getConstant(modestr.c_str(), mode))
 	{
@@ -200,7 +206,7 @@ static void lh_setBlendMode(LhatMachine *machine, void *context, const LhatValue
 	BlendAlpha alpha = BLENDALPHA_MULTIPLY;
 	if (count >= 2)
 	{
-		std::string alphastr = lh::optString(args, count, 1, "alphamultiply");
+		std::string alphastr = lh::optEnum(machine, args, count, 1, "love.graphics", "BlendAlphaMode", "alphamultiply");
 		if (!getConstant(alphastr.c_str(), alpha))
 		{
 			lh::raise(machine, "Invalid blend alpha mode: " + alphastr);
@@ -224,8 +230,8 @@ static void lh_getBlendMode(LhatMachine *machine, void *context, const LhatValue
 	const char *alphastr = "alphamultiply";
 	getConstant(mode, modestr);
 	getConstant(alpha, alphastr);
-	answers[0] = stringValue(machine, modestr);
-	answers[1] = stringValue(machine, alphastr);
+	answers[0] = lh::pushEnum(machine, "love.graphics", "BlendMode", modestr);
+	answers[1] = lh::pushEnum(machine, "love.graphics", "BlendAlphaMode", alphastr);
 	*answerCount = 2;
 }
 
@@ -292,7 +298,7 @@ static void lh_setStencilMode(LhatMachine *machine, void *context, const LhatVal
 			instance()->setStencilMode();
 			return;
 		}
-		std::string modestr = lh::optString(args, count, 0, "off");
+		std::string modestr = lh::optEnum(machine, args, count, 0, "love.graphics", "StencilMode", "off");
 		StencilMode mode;
 		if (!getConstant(modestr.c_str(), mode))
 		{
@@ -313,7 +319,7 @@ static void lh_getStencilMode(LhatMachine *machine, void *context, const LhatVal
 	StencilMode mode = instance()->getStencilMode(value);
 	const char *modestr = "off";
 	getConstant(mode, modestr);
-	answers[0] = stringValue(machine, modestr);
+	answers[0] = lh::pushEnum(machine, "love.graphics", "StencilMode", modestr);
 	answers[1] = lhat_integer(value);
 	*answerCount = 2;
 }
@@ -360,8 +366,8 @@ static void lh_setDefaultFilter(LhatMachine *machine, void *context, const LhatV
 {
 	(void) context;
 	SamplerState s = instance()->getDefaultSamplerState();
-	std::string minstr = lh::optString(args, count, 0, "linear");
-	std::string magstr = lh::optString(args, count, 1, minstr);
+	std::string minstr = lh::optEnum(machine, args, count, 0, "love.graphics", "FilterMode", "linear");
+	std::string magstr = lh::optEnum(machine, args, count, 1, "love.graphics", "FilterMode", minstr);
 	if (!SamplerState::getConstant(minstr.c_str(), s.minFilter))
 	{
 		lh::raise(machine, "Invalid filter mode: " + minstr);
@@ -387,8 +393,8 @@ static void lh_getDefaultFilter(LhatMachine *machine, void *context, const LhatV
 	const char *magstr = "linear";
 	SamplerState::getConstant(s.minFilter, minstr);
 	SamplerState::getConstant(s.magFilter, magstr);
-	answers[0] = stringValue(machine, minstr);
-	answers[1] = stringValue(machine, magstr);
+	answers[0] = lh::pushEnum(machine, "love.graphics", "FilterMode", minstr);
+	answers[1] = lh::pushEnum(machine, "love.graphics", "FilterMode", magstr);
 	answers[2] = lhat_integer(s.maxAnisotropy);
 	*answerCount = 3;
 }
@@ -397,7 +403,7 @@ static void lh_setLineStyle(LhatMachine *machine, void *context, const LhatValue
 							LhatValue *answers, int *answerCount)
 {
 	(void) context;
-	std::string name = lh::optString(args, count, 0, "smooth");
+	std::string name = lh::optEnum(machine, args, count, 0, "love.graphics", "LineStyle", "smooth");
 	Graphics::LineStyle style;
 	if (!Graphics::getConstant(name.c_str(), style))
 	{
@@ -415,7 +421,7 @@ static void lh_getLineStyle(LhatMachine *machine, void *context, const LhatValue
 	(void) count;
 	const char *name = "smooth";
 	Graphics::getConstant(instance()->getLineStyle(), name);
-	answers[0] = stringValue(machine, name);
+	answers[0] = lh::pushEnum(machine, "love.graphics", "LineStyle", name);
 	*answerCount = 1;
 }
 
@@ -423,7 +429,7 @@ static void lh_setLineJoin(LhatMachine *machine, void *context, const LhatValue 
 						   LhatValue *answers, int *answerCount)
 {
 	(void) context;
-	std::string name = lh::optString(args, count, 0, "miter");
+	std::string name = lh::optEnum(machine, args, count, 0, "love.graphics", "LineJoin", "miter");
 	Graphics::LineJoin join;
 	if (!Graphics::getConstant(name.c_str(), join))
 	{
@@ -441,7 +447,7 @@ static void lh_getLineJoin(LhatMachine *machine, void *context, const LhatValue 
 	(void) count;
 	const char *name = "miter";
 	Graphics::getConstant(instance()->getLineJoin(), name);
-	answers[0] = stringValue(machine, name);
+	answers[0] = lh::pushEnum(machine, "love.graphics", "LineJoin", name);
 	*answerCount = 1;
 }
 
@@ -594,9 +600,9 @@ static void lh_arc(LhatMachine *machine, void *context, const LhatValue *args, s
 		return;
 	Graphics::ArcMode arcmode = Graphics::ARC_PIE;
 	size_t at = 1;
-	if (count >= 2 && lh::stringOf(args[1]) != nullptr)
+	if (count >= 2 && !lhat_is_number(args[1]))
 	{
-		std::string name = lh::optString(args, count, 1, "pie");
+		std::string name = lh::optEnum(machine, args, count, 1, "love.graphics", "ArcMode", "pie");
 		if (!Graphics::getConstant(name.c_str(), arcmode))
 		{
 			lh::raise(machine, "Invalid arc mode: " + name);
@@ -750,7 +756,7 @@ static void lh_Texture_getFormat(LhatMachine *machine, void *context, const Lhat
 	TEXTURE_SELF();
 	const char *name = "";
 	getConstant(t->getPixelFormat(), name);
-	answers[0] = stringValue(machine, name);
+	answers[0] = lh::pushEnum(machine, "love.graphics", "PixelFormat", name);
 	*answerCount = 1;
 }
 
@@ -791,8 +797,8 @@ static void lh_Texture_getFilter(LhatMachine *machine, void *context, const Lhat
 	const char *magstr = "linear";
 	SamplerState::getConstant(s.minFilter, minstr);
 	SamplerState::getConstant(s.magFilter, magstr);
-	answers[0] = stringValue(machine, minstr);
-	answers[1] = stringValue(machine, magstr);
+	answers[0] = lh::pushEnum(machine, "love.graphics", "FilterMode", minstr);
+	answers[1] = lh::pushEnum(machine, "love.graphics", "FilterMode", magstr);
 	answers[2] = lhat_integer(s.maxAnisotropy);
 	*answerCount = 3;
 }
@@ -804,8 +810,8 @@ static void lh_Texture_setWrap(LhatMachine *machine, void *context, const LhatVa
 	(void) context;
 	TEXTURE_SELF();
 	SamplerState s = t->getSamplerState();
-	std::string u = lh::optString(args, count, 1, "clamp");
-	std::string v = lh::optString(args, count, 2, u);
+	std::string u = lh::optEnum(machine, args, count, 1, "love.graphics", "WrapMode", "clamp");
+	std::string v = lh::optEnum(machine, args, count, 2, "love.graphics", "WrapMode", u);
 	if (!SamplerState::getConstant(u.c_str(), s.wrapU))
 	{
 		lh::raise(machine, "Invalid wrap mode: " + u);
@@ -831,8 +837,8 @@ static void lh_Texture_getWrap(LhatMachine *machine, void *context, const LhatVa
 	const char *v = "clamp";
 	SamplerState::getConstant(s.wrapU, u);
 	SamplerState::getConstant(s.wrapV, v);
-	answers[0] = stringValue(machine, u);
-	answers[1] = stringValue(machine, v);
+	answers[0] = lh::pushEnum(machine, "love.graphics", "WrapMode", u);
+	answers[1] = lh::pushEnum(machine, "love.graphics", "WrapMode", v);
 	*answerCount = 2;
 }
 
@@ -879,28 +885,28 @@ bool lhGraphicsState(lh::Context &ctx)
 		&& ctx.func(m, "setShader", "p^;", lh_setShader, nullptr)
 		&& ctx.func(m, "setShader", "p^love.graphics.Shader;", lh_setShader, nullptr)
 		&& ctx.func(m, "getShader", "p^ -> love.graphics.Shader|nil^;", lh_getShader, nullptr)
-		&& ctx.func(m, "setBlendMode", "p^string^;", lh_setBlendMode, nullptr)
-		&& ctx.func(m, "setBlendMode", "p^string^, string^;", lh_setBlendMode, nullptr)
-		&& ctx.func(m, "getBlendMode", "f^ -> (string^, string^);", lh_getBlendMode, nullptr)
+		&& ctx.func(m, "setBlendMode", "p^love.graphics.BlendMode;", lh_setBlendMode, nullptr)
+		&& ctx.func(m, "setBlendMode", "p^love.graphics.BlendMode, love.graphics.BlendAlphaMode;", lh_setBlendMode, nullptr)
+		&& ctx.func(m, "getBlendMode", "f^ -> (love.graphics.BlendMode, love.graphics.BlendAlphaMode);", lh_getBlendMode, nullptr)
 		&& ctx.func(m, "setScissor", "p^;", lh_setScissor, nullptr)
 		&& ctx.func(m, "setScissor", "p^number^, number^, number^, number^;", lh_setScissor, nullptr)
 		&& ctx.func(m, "intersectScissor", "p^number^, number^, number^, number^;", lh_intersectScissor, nullptr)
 		&& ctx.func(m, "getScissor", "f^ -> (number^, number^, number^, number^);", lh_getScissor, nullptr)
 		&& ctx.func(m, "setStencilMode", "p^;", lh_setStencilMode, nullptr)
-		&& ctx.func(m, "setStencilMode", "p^string^;", lh_setStencilMode, nullptr)
-		&& ctx.func(m, "setStencilMode", "p^string^, number^;", lh_setStencilMode, nullptr)
-		&& ctx.func(m, "getStencilMode", "f^ -> (string^, number^);", lh_getStencilMode, nullptr)
+		&& ctx.func(m, "setStencilMode", "p^love.graphics.StencilMode;", lh_setStencilMode, nullptr)
+		&& ctx.func(m, "setStencilMode", "p^love.graphics.StencilMode, number^;", lh_setStencilMode, nullptr)
+		&& ctx.func(m, "getStencilMode", "f^ -> (love.graphics.StencilMode, number^);", lh_getStencilMode, nullptr)
 		&& ctx.func(m, "setColorMask", "p^;", lh_setColorMask, nullptr)
 		&& ctx.func(m, "setColorMask", "p^bool^, bool^, bool^, bool^;", lh_setColorMask, nullptr)
 		&& ctx.func(m, "getColorMask", "f^ -> (bool^, bool^, bool^, bool^);", lh_getColorMask, nullptr)
-		&& ctx.func(m, "setDefaultFilter", "p^string^;", lh_setDefaultFilter, nullptr)
-		&& ctx.func(m, "setDefaultFilter", "p^string^, string^;", lh_setDefaultFilter, nullptr)
-		&& ctx.func(m, "setDefaultFilter", "p^string^, string^, number^;", lh_setDefaultFilter, nullptr)
-		&& ctx.func(m, "getDefaultFilter", "f^ -> (string^, string^, number^);", lh_getDefaultFilter, nullptr)
-		&& ctx.func(m, "setLineStyle", "p^string^;", lh_setLineStyle, nullptr)
-		&& ctx.func(m, "getLineStyle", "f^ -> string^;", lh_getLineStyle, nullptr)
-		&& ctx.func(m, "setLineJoin", "p^string^;", lh_setLineJoin, nullptr)
-		&& ctx.func(m, "getLineJoin", "f^ -> string^;", lh_getLineJoin, nullptr)
+		&& ctx.func(m, "setDefaultFilter", "p^love.graphics.FilterMode;", lh_setDefaultFilter, nullptr)
+		&& ctx.func(m, "setDefaultFilter", "p^love.graphics.FilterMode, love.graphics.FilterMode;", lh_setDefaultFilter, nullptr)
+		&& ctx.func(m, "setDefaultFilter", "p^love.graphics.FilterMode, love.graphics.FilterMode, number^;", lh_setDefaultFilter, nullptr)
+		&& ctx.func(m, "getDefaultFilter", "f^ -> (love.graphics.FilterMode, love.graphics.FilterMode, number^);", lh_getDefaultFilter, nullptr)
+		&& ctx.func(m, "setLineStyle", "p^love.graphics.LineStyle;", lh_setLineStyle, nullptr)
+		&& ctx.func(m, "getLineStyle", "f^ -> love.graphics.LineStyle;", lh_getLineStyle, nullptr)
+		&& ctx.func(m, "setLineJoin", "p^love.graphics.LineJoin;", lh_setLineJoin, nullptr)
+		&& ctx.func(m, "getLineJoin", "f^ -> love.graphics.LineJoin;", lh_getLineJoin, nullptr)
 		&& ctx.func(m, "setWireframe", "p^bool^;", lh_setWireframe, nullptr)
 		&& ctx.func(m, "isWireframe", "f^ -> bool^;", lh_isWireframe, nullptr)
 		&& ctx.func(m, "getPointSize", "f^ -> number^;", lh_getPointSize, nullptr)
@@ -911,9 +917,9 @@ bool lhGraphicsState(lh::Context &ctx)
 		&& ctx.func(m, "transformPoint", "f^number^, number^ -> (number^, number^);", lh_transformPoint, nullptr)
 		&& ctx.func(m, "inverseTransformPoint", "f^number^, number^ -> (number^, number^);", lh_inverseTransformPoint, nullptr)
 		&& ctx.func(m, "getStackDepth", "f^ -> number^;", lh_getStackDepth, nullptr)
-		&& ctx.func(m, "ellipse", "p^string^, number^, number^, number^, ...;", lh_ellipse, nullptr)
-		&& ctx.func(m, "arc", "p^string^, number^, number^, number^, number^, number^, ...;", lh_arc, nullptr)
-		&& ctx.func(m, "arc", "p^string^, string^, number^, number^, number^, number^, number^, ...;", lh_arc, nullptr)
+		&& ctx.func(m, "ellipse", "p^love.graphics.DrawMode, number^, number^, number^, ...;", lh_ellipse, nullptr)
+		&& ctx.func(m, "arc", "p^love.graphics.DrawMode, number^, number^, number^, number^, number^, ...;", lh_arc, nullptr)
+		&& ctx.func(m, "arc", "p^love.graphics.DrawMode, love.graphics.ArcMode, number^, number^, number^, number^, number^, ...;", lh_arc, nullptr)
 		&& ctx.func(m, "getRendererInfo", "f^ -> (string^, string^, string^, string^);", lh_getRendererInfo, nullptr)
 		&& ctx.func(m, "getStats", "f^ -> t^{ drawcalls : number^, drawcallsbatched : number^, canvasswitches : number^, shaderswitches : number^, textures : number^, fonts : number^, buffers : number^, texturememory : number^, buffermemory : number^ };", lh_getStats, nullptr)
 		&& ctx.func(m, "getDPIScale", "f^ -> number^;", lh_getDPIScale, nullptr)
@@ -922,14 +928,14 @@ bool lhGraphicsState(lh::Context &ctx)
 		&& ctx.func(m, "readbackTexture", "p^love.graphics.Texture, number^, number^, number^, number^ -> love.image.ImageData;", lh_readbackTexture, nullptr)
 		&& ctx.member(m, T, "isCanvas", "f^self^ -> bool^;", lh_Texture_isCanvas, nullptr)
 		&& ctx.member(m, T, "isReadable", "f^self^ -> bool^;", lh_Texture_isReadable, nullptr)
-		&& ctx.member(m, T, "getFormat", "f^self^ -> string^;", lh_Texture_getFormat, nullptr)
+		&& ctx.member(m, T, "getFormat", "f^self^ -> love.graphics.PixelFormat;", lh_Texture_getFormat, nullptr)
 		&& ctx.member(m, T, "getDPIScale", "f^self^ -> number^;", lh_Texture_getDPIScale, nullptr)
 		&& ctx.member(m, T, "getPixelDimensions", "f^self^ -> (number^, number^);", lh_Texture_getPixelDimensions, nullptr)
 		&& ctx.member(m, T, "getMipmapCount", "f^self^ -> number^;", lh_Texture_getMipmapCount, nullptr)
-		&& ctx.member(m, T, "getFilter", "f^self^ -> (string^, string^, number^);", lh_Texture_getFilter, nullptr)
-		&& ctx.member(m, T, "setWrap", "p^self^, string^;", lh_Texture_setWrap, nullptr)
-		&& ctx.member(m, T, "setWrap", "p^self^, string^, string^;", lh_Texture_setWrap, nullptr)
-		&& ctx.member(m, T, "getWrap", "f^self^ -> (string^, string^);", lh_Texture_getWrap, nullptr)
+		&& ctx.member(m, T, "getFilter", "f^self^ -> (love.graphics.FilterMode, love.graphics.FilterMode, number^);", lh_Texture_getFilter, nullptr)
+		&& ctx.member(m, T, "setWrap", "p^self^, love.graphics.WrapMode;", lh_Texture_setWrap, nullptr)
+		&& ctx.member(m, T, "setWrap", "p^self^, love.graphics.WrapMode, love.graphics.WrapMode;", lh_Texture_setWrap, nullptr)
+		&& ctx.member(m, T, "getWrap", "f^self^ -> (love.graphics.WrapMode, love.graphics.WrapMode);", lh_Texture_getWrap, nullptr)
 		&& ctx.member(m, T, "generateMipmaps", "p^self^;", lh_Texture_generateMipmaps, nullptr)
 		&& ctx.member(m, T, "replacePixels", "p^self^, love.image.ImageData;", lh_Texture_replacePixels, nullptr)
 		&& ctx.member(m, T, "replacePixels", "p^self^, love.image.ImageData, number^, number^;", lh_Texture_replacePixels, nullptr);

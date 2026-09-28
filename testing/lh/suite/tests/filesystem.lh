@@ -26,7 +26,7 @@ public^let^run = p^{
     if^info = nil^{
         test.isTrue("getInfo answers a table", false^)
     else^:
-        test.text("info type", "file", info.type)
+        test.isTrue("info type", love.filesystem.FileType.file = info.type)
         test.number("info size", 11, info.size)
     }
     test.isTrue("getInfo on nothing answers nil^", love.filesystem.getInfo("no-such-file.txt") fits^nil^)
@@ -47,7 +47,7 @@ public^let^run = p^{
     if^dirinfo = nil^{
         test.isTrue("a directory has info", false^)
     else^:
-        test.text("info type of a directory", "directory", dirinfo.type)
+        test.isTrue("info type of a directory", love.filesystem.FileType.directory = dirinfo.type)
     }
 
     # a real directory backs the save file

@@ -84,7 +84,7 @@ static bool vertexTable(LhatMachine *machine, LhatValue value, Vertex &out)
 
 static bool drawModeAt(LhatMachine *machine, const LhatValue *args, size_t count, size_t index, PrimitiveType &mode)
 {
-	std::string name = lh::optString(args, count, index, "fan");
+	std::string name = lh::optEnum(machine, args, count, index, "love.graphics", "MeshDrawMode", "fan");
 	if (!getConstant(name.c_str(), mode))
 	{
 		lh::raise(machine, "Invalid mesh draw mode: " + name);
@@ -95,7 +95,7 @@ static bool drawModeAt(LhatMachine *machine, const LhatValue *args, size_t count
 
 static bool usageAt(LhatMachine *machine, const LhatValue *args, size_t count, size_t index, BufferDataUsage &usage)
 {
-	std::string name = lh::optString(args, count, index, "dynamic");
+	std::string name = lh::optEnum(machine, args, count, index, "love.graphics", "Usage", "dynamic");
 	if (!getConstant(name.c_str(), usage))
 	{
 		lh::raise(machine, "Invalid usage hint: " + name);
@@ -337,7 +337,7 @@ static void lh_Mesh_getDrawMode(LhatMachine *machine, void *context, const LhatV
 	const char *name = "fan";
 	getConstant(mesh->getDrawMode(), name);
 	LhatValue out = lhat_nil();
-	lh::makeString(machine, name, &out);
+	out = lh::pushEnum(machine, "love.graphics", "MeshDrawMode", name);
 	answers[0] = out;
 	*answerCount = 1;
 }
@@ -406,11 +406,11 @@ bool lhGraphicsMesh(lh::Context &ctx)
 		return true;
 	const char *M = "Mesh";
 	return ctx.func(m, "newMesh", "p^t^{t^{number^[]}[]} -> love.graphics.Mesh;", lh_newMesh, nullptr)
-		&& ctx.func(m, "newMesh", "p^t^{t^{number^[]}[]}, string^ -> love.graphics.Mesh;", lh_newMesh, nullptr)
-		&& ctx.func(m, "newMesh", "p^t^{t^{number^[]}[]}, string^, string^ -> love.graphics.Mesh;", lh_newMesh, nullptr)
+		&& ctx.func(m, "newMesh", "p^t^{t^{number^[]}[]}, love.graphics.MeshDrawMode -> love.graphics.Mesh;", lh_newMesh, nullptr)
+		&& ctx.func(m, "newMesh", "p^t^{t^{number^[]}[]}, love.graphics.MeshDrawMode, love.graphics.Usage -> love.graphics.Mesh;", lh_newMesh, nullptr)
 		&& ctx.func(m, "newMesh", "p^number^ -> love.graphics.Mesh;", lh_newMesh, nullptr)
-		&& ctx.func(m, "newMesh", "p^number^, string^ -> love.graphics.Mesh;", lh_newMesh, nullptr)
-		&& ctx.func(m, "newMesh", "p^number^, string^, string^ -> love.graphics.Mesh;", lh_newMesh, nullptr)
+		&& ctx.func(m, "newMesh", "p^number^, love.graphics.MeshDrawMode -> love.graphics.Mesh;", lh_newMesh, nullptr)
+		&& ctx.func(m, "newMesh", "p^number^, love.graphics.MeshDrawMode, love.graphics.Usage -> love.graphics.Mesh;", lh_newMesh, nullptr)
 		&& ctx.member(m, M, "setVertex", "p^self^, number^, number^, number^, ...;", lh_Mesh_setVertex, nullptr)
 		&& ctx.member(m, M, "setVertex", "p^self^, number^, t^{number^[]};", lh_Mesh_setVertex, nullptr)
 		&& ctx.member(m, M, "getVertex", "f^self^, number^ -> (number^, number^, number^, number^, number^, number^, number^, number^);", lh_Mesh_getVertex, nullptr)
@@ -424,8 +424,8 @@ bool lhGraphicsMesh(lh::Context &ctx)
 		&& ctx.member(m, M, "setTexture", "p^self^;", lh_Mesh_setTexture, nullptr)
 		&& ctx.member(m, M, "setTexture", "p^self^, love.graphics.Texture;", lh_Mesh_setTexture, nullptr)
 		&& ctx.member(m, M, "getTexture", "p^self^ -> love.graphics.Texture|nil^;", lh_Mesh_getTexture, nullptr)
-		&& ctx.member(m, M, "setDrawMode", "p^self^, string^;", lh_Mesh_setDrawMode, nullptr)
-		&& ctx.member(m, M, "getDrawMode", "f^self^ -> string^;", lh_Mesh_getDrawMode, nullptr)
+		&& ctx.member(m, M, "setDrawMode", "p^self^, love.graphics.MeshDrawMode;", lh_Mesh_setDrawMode, nullptr)
+		&& ctx.member(m, M, "getDrawMode", "f^self^ -> love.graphics.MeshDrawMode;", lh_Mesh_getDrawMode, nullptr)
 		&& ctx.member(m, M, "setDrawRange", "p^self^;", lh_Mesh_setDrawRange, nullptr)
 		&& ctx.member(m, M, "setDrawRange", "p^self^, number^, number^;", lh_Mesh_setDrawRange, nullptr)
 		&& ctx.member(m, M, "getDrawRange", "f^self^ -> (number^, number^);", lh_Mesh_getDrawRange, nullptr)
@@ -636,7 +636,7 @@ bool lhGraphicsSpriteBatch(lh::Context &ctx)
 	const char *B = "SpriteBatch";
 	return ctx.func(m, "newSpriteBatch", "p^love.graphics.Texture -> love.graphics.SpriteBatch;", lh_newSpriteBatch, nullptr)
 		&& ctx.func(m, "newSpriteBatch", "p^love.graphics.Texture, number^ -> love.graphics.SpriteBatch;", lh_newSpriteBatch, nullptr)
-		&& ctx.func(m, "newSpriteBatch", "p^love.graphics.Texture, number^, string^ -> love.graphics.SpriteBatch;", lh_newSpriteBatch, nullptr)
+		&& ctx.func(m, "newSpriteBatch", "p^love.graphics.Texture, number^, love.graphics.Usage -> love.graphics.SpriteBatch;", lh_newSpriteBatch, nullptr)
 		&& ctx.member(m, B, "add", "p^self^, number^, number^, ... -> number^;", lh_SpriteBatch_add, nullptr)
 		&& ctx.member(m, B, "add", "p^self^, love.graphics.Quad, number^, number^, ... -> number^;", lh_SpriteBatch_add, nullptr)
 		&& ctx.member(m, B, "set", "p^self^, number^, number^, number^, ...;", lh_SpriteBatch_set, nullptr)

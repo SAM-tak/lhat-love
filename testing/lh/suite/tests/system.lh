@@ -30,7 +30,7 @@ public^let^run = p^{
     do^{
         let^state, seconds, percent = love.system.getPowerInfo()
         var^known = false^
-        for^name in^{ "unknown", "battery", "nobattery", "charging", "charged" } {
+        for^name in^{ love.system.PowerState.unknown, love.system.PowerState.battery, love.system.PowerState.nobattery, love.system.PowerState.charging, love.system.PowerState.charged } {
             if^name = state { known := true^}
         }
         test.isTrue($"getPowerInfo answers a known state ({state})", known)

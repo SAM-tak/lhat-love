@@ -26,6 +26,14 @@ let^intoCanvas = p^size:number^, body:p^; -> love.image.ImageData {
 public^let^run = p^{
     test.begin("love.graphics (state)")
 
+    let^drawModeNumber = f^mode:love.graphics.DrawMode -> number^ {
+        return^for^mode:
+            when^love.graphics.DrawMode.line: 0
+            when^love.graphics.DrawMode.fill: 1
+        ;
+    }
+    test.number("draw modes support exhaustive matching", 1, drawModeNumber(love.graphics.DrawMode.fill))
+
     # colors round trip
     let^r0, g0, b0, a0 = love.graphics.getColor()
     love.graphics.setColor(0.25, 0.5, 0.75, 0.5)
@@ -44,21 +52,21 @@ public^let^run = p^{
     love.graphics.setBackgroundColor(br, bg, bb, ba)
 
     # blend, line, point, wireframe
-    love.graphics.setBlendMode("add", "premultiplied")
+    love.graphics.setBlendMode(love.graphics.BlendMode.add, love.graphics.BlendAlphaMode.premultiplied)
     let^mode, alphamode = love.graphics.getBlendMode()
-    test.text("blend mode", "add", mode)
-    test.text("blend alpha mode", "premultiplied", alphamode)
-    love.graphics.setBlendMode("alpha")
+    test.isTrue("blend mode", love.graphics.BlendMode.add = mode)
+    test.isTrue("blend alpha mode", love.graphics.BlendAlphaMode.premultiplied = alphamode)
+    love.graphics.setBlendMode(love.graphics.BlendMode.alpha)
 
     love.graphics.setLineWidth(3)
     test.number("line width", 3, love.graphics.getLineWidth())
-    love.graphics.setLineStyle("rough")
-    test.text("line style", "rough", love.graphics.getLineStyle())
-    love.graphics.setLineJoin("bevel")
-    test.text("line join", "bevel", love.graphics.getLineJoin())
+    love.graphics.setLineStyle(love.graphics.LineStyle.rough)
+    test.isTrue("line style", love.graphics.LineStyle.rough = love.graphics.getLineStyle())
+    love.graphics.setLineJoin(love.graphics.LineJoin.bevel)
+    test.isTrue("line join", love.graphics.LineJoin.bevel = love.graphics.getLineJoin())
     love.graphics.setLineWidth(1)
-    love.graphics.setLineStyle("smooth")
-    love.graphics.setLineJoin("miter")
+    love.graphics.setLineStyle(love.graphics.LineStyle.smooth)
+    love.graphics.setLineJoin(love.graphics.LineJoin.miter)
 
     love.graphics.setPointSize(4)
     test.number("point size", 4, love.graphics.getPointSize())
@@ -87,21 +95,21 @@ public^let^run = p^{
     love.graphics.setColorMask()
 
     # stencil
-    love.graphics.setStencilMode("draw", 2)
+    love.graphics.setStencilMode(love.graphics.StencilMode.draw, 2)
     let^stencil, value = love.graphics.getStencilMode()
-    test.text("stencil mode", "draw", stencil)
+    test.isTrue("stencil mode", love.graphics.StencilMode.draw = stencil)
     test.number("stencil value", 2, value)
     love.graphics.setStencilMode()
     let^off, _v = love.graphics.getStencilMode()
-    test.text("stencil off", "off", off)
+    test.isTrue("stencil off", love.graphics.StencilMode.off = off)
 
     # default filter
-    love.graphics.setDefaultFilter("nearest", "nearest", 2)
+    love.graphics.setDefaultFilter(love.graphics.FilterMode.nearest, love.graphics.FilterMode.nearest, 2)
     let^fmin, fmag, aniso = love.graphics.getDefaultFilter()
-    test.text("default min filter", "nearest", fmin)
-    test.text("default mag filter", "nearest", fmag)
+    test.isTrue("default min filter", love.graphics.FilterMode.nearest = fmin)
+    test.isTrue("default mag filter", love.graphics.FilterMode.nearest = fmag)
     test.number("anisotropy", 2, aniso)
-    love.graphics.setDefaultFilter("linear", "linear", 1)
+    love.graphics.setDefaultFilter(love.graphics.FilterMode.linear, love.graphics.FilterMode.linear, 1)
 
     # the transform stack
     let^depth = love.graphics.getStackDepth()
@@ -137,11 +145,26 @@ public^let^run = p^{
 
     test.begin("love.graphics (canvas)")
 
+    let^configured = love.graphics.newCanvas(4, 4, {
+        msaa = 1,
+        format = love.graphics.PixelFormat.rgba8,
+        mipmaps = love.graphics.MipmapMode.none,
+    })
+    test.isTrue("canvas format settings use enums", configured.getFormat() = love.graphics.PixelFormat.rgba8)
+    test.number("canvas mipmap settings use enums", 1, configured.getMipmapCount())
     let^canvas = love.graphics.newCanvas(32, 32)
+    canvas.setFilter(love.graphics.FilterMode.nearest)
+    let^canvasMin, canvasMag, _canvasAniso = canvas.getFilter()
+    test.isTrue("one filter defaults both axes", canvasMin = love.graphics.FilterMode.nearest and^canvasMag = canvasMin)
+    canvas.setFilter(canvasMin, canvasMag)
+    canvas.setWrap(love.graphics.WrapMode.repeat)
+    let^wrapU, wrapV = canvas.getWrap()
+    test.isTrue("wrap enums round trip", wrapU = love.graphics.WrapMode.repeat and^wrapV = wrapU)
+    canvas.setWrap(wrapU, wrapV)
     test.isTrue("a canvas is a canvas", canvas.isCanvas())
     test.isTrue("a canvas is readable", canvas.isReadable())
     test.number("canvas width", 32, canvas.getWidth())
-    test.isTrue("a canvas has a format", canvas.getFormat().length > 0)
+    test.isTrue("a canvas has a format", canvas.getFormat() fits^love.graphics.PixelFormat)
     test.number("one mip level", 1, canvas.getMipmapCount())
     test.isTrue("nothing is set as the canvas", love.graphics.getCanvas() fits^nil^)
     love.graphics.setCanvas(canvas)
@@ -151,7 +174,7 @@ public^let^run = p^{
     # a filled rectangle lands where it was drawn
     let^pixels = intoCanvas(32, p^{
         love.graphics.setColor(1, 0, 0, 1)
-        love.graphics.rectangle("fill", 8, 8, 16, 16)
+        love.graphics.rectangle(love.graphics.DrawMode.fill, 8, 8, 16, 16)
     })
     let^cr, cg, cb, ca = pixels.getPixel(16, 16)
     test.isTrue("the rectangle is red in the middle", cr > 0.9 and^cg < 0.1 and^cb < 0.1)
@@ -203,9 +226,9 @@ public^let^run = p^{
     test.isTrue("and says why", message.length > 0)
 
     # Mesh
-    let^mesh = love.graphics.newMesh({ {0, 0, 0, 0}, {16, 0, 1, 0}, {16, 16, 1, 1}, {0, 16, 0, 1} }, "fan")
+    let^mesh = love.graphics.newMesh({ {0, 0, 0, 0}, {16, 0, 1, 0}, {16, 16, 1, 1}, {0, 16, 0, 1} }, love.graphics.MeshDrawMode.fan)
     test.number("vertex count", 4, mesh.getVertexCount())
-    test.text("draw mode", "fan", mesh.getDrawMode())
+    test.isTrue("draw mode", love.graphics.MeshDrawMode.fan = mesh.getDrawMode())
     let^mx, my, mu, mv, mr2, _mg, _mb, _ma = mesh.getVertex(1)
     test.number("a vertex reads back", 16, mx)
     test.number("its texture coordinate", 1, mu)
@@ -222,7 +245,7 @@ public^let^run = p^{
     test.isTrue("a Quad is not one", !(love.graphics.newQuad(0, 0, 8, 8, 16, 16) fits^love.graphics.Drawable))
     mesh.setTexture(texture)
     test.isTrue("the mesh has a texture", mesh.getTexture()?)
-    mesh.setDrawMode("triangles")
+    mesh.setDrawMode(love.graphics.MeshDrawMode.triangles)
     mesh.setVertexMap(0, 1, 2, 2, 3, 0)
     let^map = mesh.getVertexMap()
     test.number("the vertex map is kept", 6, map.length^)
