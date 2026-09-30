@@ -168,7 +168,8 @@ copy /b build-vmonly-shipping\love\Release\love.exe+mygame.love mygame.exe
 ```
 
 `--compile-game` はゲーム内の `.lh` を**全部** check して書き出す（実行が届かない
-スレッドユニットも入る）。`conf.lton` も同じく `std.lton` の writer を通す。
+スレッドユニットも入る）。`conf.lton` を含む全 `.lton` も、サブディレクトリまで
+`std.lton` の writer を通してバイナリ化する。VM 版でも `std.lton.load` で読める。
 画像・フォント・音はそのまま複製されるので、出力ディレクトリがそのまま `.love` になる。
 
 - **利得は起動**。登録署名 800 本の解析（4.2ms）が表引き（0.0ms）になり、ゲームの
@@ -257,14 +258,19 @@ enum の整数値は C++ の列挙値を公開する契約ではない。メン�
 # LÖVE API を登録した状態でソースをコンパイルする。実行はしない。
 .\build\love\Release\lovec.exe --compile -o out path\to\fighter.lh
 
-# ゲーム全体（未参照の .lh、conf.lton、素材も含む）を出力する。
+# LTON データ単体を出力する（out/settings.lton）。
+.\build\love\Release\lovec.exe --compile -o out path\to\settings.lton
+
+# ゲーム全体（未参照の .lh、全 .lton、素材も含む）を出力する。
 .\build\love\Release\lovec.exe --compile-game out\game path\to\game
 
 # panic でエラー画面を待たず、診断を stderr に出して終了する。
 .\build\love\Release\lovec.exe --no-error-screen path\to\game
 ```
 
-`--compile` の入力は `.lh` ファイル。指定したソースと `require^` で到達するユニットだけを、入力ファイルのあるディレクトリからの相対配置で出力する。たとえば `fighter.lh` と `lib/ai.lh` は `out/fighter.lh` と `out/lib/ai.lh` になる。拡張子は `.lh` のまま、中身がバイナリになる。通常のライブラリも対象なので、公開された `draw` や `update` にゲーム用コールバックの型は要求しない。無関係なソース、`conf.lton`、素材は出力しない。
+`--compile` の入力が `.lh` の場合、指定したソースと `require^` で到達するユニットだけを、入力ファイルのあるディレクトリからの相対配置で出力する。たとえば `fighter.lh` と `lib/ai.lh` は `out/fighter.lh` と `out/lib/ai.lh` になる。拡張子は `.lh` のまま、中身がバイナリになる。通常のライブラリも対象なので、公開された `draw` や `update` にゲーム用コールバックの型は要求しない。無関係なソース、`conf.lton`、素材は出力しない。
+
+入力が `.lton` の場合、そのデータだけをコンパイルし、同じファイル名で出力ディレクトリに書き出す。拡張子は `.lton` のままで、コンパイル時には実行しない。`--debug-names` も利用できる。不正な LTON はファイル名付きの診断と終了コード 1 で拒否する。
 
 `-o DIR`（または `--output DIR`）は必須。`--debug-names` を添えるとローカル名・捕捉名を残す。バイナリは同じ L^ バージョン・ホスト API を持つエンジンで読む。ソースとバイナリを同じプログラム内で混在させず、実行用エントリから依存グラフ全体をコンパイルする。
 

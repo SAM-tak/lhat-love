@@ -62,6 +62,7 @@ static void print_usage()
 		"    love --help                     prints this message and quits\n"
 		"    love --dump-host-api [file]     writes the L^ host API (lhat-host.json) for the language server and quits\n"
 		"    lovec --compile -o DIR file.lh  compiles the source and its required units without running them\n"
+		"    lovec --compile -o DIR file.lton  compiles LTON data without running it\n"
 		"    lovec --compile-game DIR GAME  compiles a whole game and copies its configuration and assets\n"
 		"    love --no-error-screen GAME    reports errors to stderr and exits instead of waiting on an error screen\n"
 		"    --debug-names                  keeps local and captured names in compiled units\n"

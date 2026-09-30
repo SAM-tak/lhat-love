@@ -534,7 +534,7 @@ static std::string describeLton(LhatMachine *machine, LhatProgram *program, Lhat
 
 // 05 の 10.8: a build without the front end reads compiled units and nothing
 // else, so what it runs has to be written by a build that has one. This is
-// that writer: the units the game reached, and its conf.lton, laid out under
+// that writer: the units the game reached, and its LTON data, laid out under
 // a directory with the paths they had, so the result mounts the way the
 // source did.
 //
@@ -606,12 +606,36 @@ static std::string checkAllUnits(Runtime &runtime, const std::string &dir)
 	return std::string();
 }
 
+static std::string compileLton(Runtime &runtime, const std::string &to,
+                               const std::string &path, bool debugNames)
+{
+	auto fs = Module::getInstance<love::filesystem::Filesystem>(Module::M_FILESYSTEM);
+	StrongRef<love::filesystem::FileData> data(fs->read(path.c_str()), Acquire::NORETAIN);
+	uint8_t *bytes = nullptr;
+	size_t length = 0;
+	LhatLtonStatus wrote = lhatstdlib_lton_write(runtime.program(), path.c_str(),
+	                                             (const char *) data->getData(),
+	                                             data->getSize(), debugNames, &bytes, &length);
+	if (wrote != LHAT_LTON_OK)
+		return path + ": " + describeLton(runtime.machine(), runtime.program(), wrote);
+	std::error_code directoryError;
+	std::filesystem::create_directories(std::filesystem::path(to + "/" + path).parent_path(), directoryError);
+	if (directoryError)
+	{
+		lhat_free(bytes);
+		return "Could not create output directory for " + path + ": " + directoryError.message();
+	}
+	bool ok = writeBytes(to + "/" + path, bytes, length);
+	lhat_free(bytes);
+	return ok ? std::string() : "Could not write " + to + "/" + path;
+}
+
 // Everything the game carries that is not a unit: images, fonts, sounds,
 // shader sources. The program never saw them, so the walk above cannot,
 // and a directory holding only compiled units is not a game. Copies them
-// with the paths they had, so the result mounts the way the source did.
-static bool copyRest(const std::string &to, const std::string &dir,
-                     const std::set<std::string> &written, size_t &copied)
+// with the paths they had, compiling LTON data for builds without a front end.
+static std::string copyRest(Runtime &runtime, const std::string &to, const std::string &dir,
+                            const std::set<std::string> &written, bool debugNames, size_t &copied)
 {
 	auto fs = Module::getInstance<love::filesystem::Filesystem>(Module::M_FILESYSTEM);
 	std::vector<std::string> items;
@@ -625,19 +649,28 @@ static bool copyRest(const std::string &to, const std::string &dir,
 		if (info.type == love::filesystem::Filesystem::FILETYPE_DIRECTORY)
 		{
 			makeParents(to, path + "/x");
-			if (!copyRest(to, path, written, copied))
-				return false;
+			std::string trouble = copyRest(runtime, to, path, written, debugNames, copied);
+			if (!trouble.empty())
+				return trouble;
 			continue;
 		}
 		if (written.count(path) != 0)
 			continue;
+		if (endsWith(path, ".lton"))
+		{
+			std::string trouble = compileLton(runtime, to, path, debugNames);
+			if (!trouble.empty())
+				return trouble;
+			copied++;
+			continue;
+		}
 		StrongRef<love::filesystem::FileData> data(fs->read(path.c_str()), Acquire::NORETAIN);
 		makeParents(to, path);
 		if (!writeBytes(to + "/" + path, data->getData(), data->getSize()))
-			return false;
+			return "Could not write " + to + "/" + path;
 		copied++;
 	}
-	return true;
+	return std::string();
 }
 
 // Source compilation writes only the reached units. Game compilation also
@@ -686,30 +719,10 @@ static std::string compileOutput(Runtime &runtime, Loader &loader, const std::st
 		return std::string();
 	}
 
-	// 08 の 7改: conf.lton is data, so it goes through std.lton's own writer
-	// -- the wrapper it puts around a text is part of what a compiled one
-	// carries, and lhatstdlib_lton_load reads either.
-	if (loader.exists("conf.lton"))
-	{
-		auto fs = Module::getInstance<love::filesystem::Filesystem>(Module::M_FILESYSTEM);
-		StrongRef<love::filesystem::FileData> data(fs->read("conf.lton"), Acquire::NORETAIN);
-		uint8_t *bytes = nullptr;
-		size_t length = 0;
-		LhatLtonStatus wrote = lhatstdlib_lton_write(runtime.program(), "conf.lton",
-		                                             (const char *) data->getData(),
-		                                             data->getSize(), debugNames, &bytes, &length);
-		if (wrote != LHAT_LTON_OK)
-			return std::string("conf.lton: ") + describeLton(runtime.machine(), runtime.program(), wrote);
-		bool ok = writeBytes(to + "/conf.lton", bytes, length);
-		lhat_free(bytes);
-		if (!ok)
-			return "Could not write " + to + "/conf.lton";
-		written.insert("conf.lton");
-	}
-
 	size_t copied = 0;
-	if (!copyRest(to, "", written, copied))
-		return "Could not copy the game's other files into " + to;
+	std::string trouble = copyRest(runtime, to, "", written, debugNames, copied);
+	if (!trouble.empty())
+		return trouble;
 
 	printf("wrote %zu compiled units and copied %zu other files to %s\n",
 	       written.size(), copied, to.c_str());
@@ -1096,8 +1109,12 @@ struct Arguments
 	std::string signaturesPath; // --dump-signatures FILE
 	std::string compileTo;      // --compile-game DIR
 	bool compileRequested = false;
-	bool sourceCompile = false; // --compile -o DIR SOURCE.lh, without game callbacks or assets
+	bool sourceCompile = false; // --compile -o DIR SOURCE.lh/.lton, without game callbacks or assets
 	std::string error;
+	// The first option nobody reads. A misspelt one used to vanish, and the
+	// run went on without it; boot() refuses it once it knows the game is
+	// not fused.
+	std::string unknown;
 	std::string embedTo;        // --dump-embedded DIR
 	bool debugNames = false;    // --debug-names, with either of those
 };
@@ -1174,17 +1191,19 @@ static Arguments parseArguments(int argc, char **argv)
 		}
 		else if (args.game.empty() && (a.empty() || a[0] != '-'))
 			args.game = a;
+		else if (!a.empty() && a[0] == '-' && args.unknown.empty())
+			args.unknown = a;
 	}
 	if (!args.error.empty())
 		return args;
 	if (args.compileRequested && args.compileTo.empty())
-		args.error = "--compile needs -o DIR. Usage: lovec --compile -o DIR SOURCE.lh";
+		args.error = "--compile needs -o DIR. Usage: lovec --compile -o DIR SOURCE.lh/.lton";
 	else if (!args.compileRequested && !args.compileTo.empty())
 		args.error = "-o / --output requires --compile.";
 	else if (args.compileRequested && args.game.empty())
-		args.error = "Compilation needs a game directory, .love archive, or .lh file.";
-	else if (args.sourceCompile && !endsWith(args.game, ".lh"))
-		args.error = "--compile expects a .lh source file. Use --compile-game DIR GAME to package a game.";
+		args.error = "Compilation needs a game directory, .love archive, .lh file, or .lton file.";
+	else if (args.sourceCompile && !endsWith(args.game, ".lh") && !endsWith(args.game, ".lton"))
+		args.error = "--compile expects a .lh or .lton source file. Use --compile-game DIR GAME to package a game.";
 	else if (args.compileRequested && (args.dumpHostApi || !args.embedTo.empty() || !args.signaturesPath.empty()))
 		args.error = "--compile cannot be combined with a dump option.";
 	return args;
@@ -1272,6 +1291,14 @@ static int boot(int argc, char **argv, bool console)
 	bool fused = canHasGame || args.fused;
 	fs->setFused(fused);
 
+	// A fused game is launched by whatever ships it, and a launcher may add
+	// options of its own; those are not the player's mistake.
+	if (!fused && !args.unknown.empty())
+	{
+		report("lhatove: arguments", "Unknown option " + args.unknown + ". See lovec --help.");
+		return 1;
+	}
+
 	// 09 章: a shipped game does not open a debug port. The option says what
 	// the build carries; this says what the game is.
 	if (fused && args.dapPort != 0)
@@ -1287,7 +1314,7 @@ static int boot(int argc, char **argv, bool console)
 	if (!canHasGame && !args.game.empty())
 	{
 		std::string source = args.game;
-		if (endsWith(source, ".lh"))
+		if (endsWith(source, ".lh") || (args.sourceCompile && endsWith(source, ".lton")))
 		{
 			mainUnit = leaf(source);
 			size_t slash = source.find_last_of("/\\");
@@ -1404,6 +1431,18 @@ static int boot(int argc, char **argv, bool console)
 		fwrite(json.data(), 1, needed, out);
 		fclose(out);
 		printf("wrote %s (%zu bytes)\n", args.dumpPath.c_str(), needed);
+		return 0;
+	}
+
+	if (args.sourceCompile && endsWith(mainUnit, ".lton"))
+	{
+		std::string trouble = compileLton(runtime, args.compileTo, mainUnit, args.debugNames);
+		if (!trouble.empty())
+		{
+			report("lhatove: compile failed", trouble);
+			return 1;
+		}
+		printf("wrote compiled LTON to %s/%s\n", args.compileTo.c_str(), mainUnit.c_str());
 		return 0;
 	}
 

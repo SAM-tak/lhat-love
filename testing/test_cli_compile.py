@@ -9,6 +9,7 @@ import tempfile
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lovec", type=Path, default=Path("build/love/Release/lovec.exe"))
+    parser.add_argument("--vm-lovec", type=Path, help="also verify compiled LTON with a VM-only build")
     args = parser.parse_args()
     lovec = args.lovec.resolve()
     checks = 0
@@ -59,6 +60,9 @@ def main():
         invoke("--no-error-screen", runnable / "entry.lh", expected=7)
         invoke("--compile", "-o", root / "with-separator", "--", fighter)
 
+        result = invoke("--compile", "--unknown-option", "-o", root / "unknown-option", fighter, expected=1)
+        assert "Unknown option --unknown-option" in result.stderr, result.stderr
+
         for arguments in [
             ("--compile", fighter), ("--compile", "-o"),
             ("--compile", "-o", root / "missing-input"),
@@ -67,6 +71,49 @@ def main():
             ("-o", root / "orphan", fighter), ("--compile-game",),
         ]:
             invoke(*arguments, expected=1)
+
+        lton = source / "settings.lton"
+        lton.write_text("value = 17\n", encoding="utf-8")
+        lton_output = root / "nested/lton output"
+        invoke("--compile", "--debug-names", "-o", lton_output, lton)
+        assert {p.name for p in lton_output.iterdir()} == {"settings.lton"}
+        assert (lton_output / "settings.lton").read_bytes() != lton.read_bytes()
+        bad_lton = source / "bad.lton"
+        bad_lton.write_text("value =\n", encoding="utf-8")
+        result = invoke("--compile", "-o", root / "bad-lton", bad_lton, expected=1)
+        assert "bad.lton" in result.stderr, result.stderr
+        invoke("--compile", "-o", root / "missing-lton", source / "absent.lton", expected=1)
+
+        lton_game = root / "lton game"
+        (lton_game / "data/nested").mkdir(parents=True)
+        (lton_game / "conf.lton").write_text(
+            "window = false^, modules = { audio = false^, graphics = false^ }\n", encoding="utf-8"
+        )
+        (lton_game / "data/nested/settings.lton").write_bytes(lton.read_bytes())
+        (lton_game / "asset.txt").write_text("preserved", encoding="utf-8")
+        (lton_game / "main.lh").write_text(
+            'module^ltongame\nimport^std.lton\npublic^let^run = p^{\n'
+            '    let^data = std.lton.load("data/nested/settings.lton")\n'
+            '    if^data fits^t^{ value : number^ } { return^data.value }\n'
+            '    return^1\n}\n', encoding="utf-8"
+        )
+        lton_packaged = root / "lton packaged"
+        invoke("--compile-game", lton_packaged, lton_game)
+        for relative in ("conf.lton", "data/nested/settings.lton"):
+            assert (lton_packaged / relative).read_bytes() != (lton_game / relative).read_bytes()
+        assert (lton_packaged / "asset.txt").read_text() == "preserved"
+        lton_runners = [lovec]
+        if args.vm_lovec:
+            lton_runners.append(args.vm_lovec.resolve())
+        for executable in lton_runners:
+            invoke("--no-error-screen", lton_packaged, expected=17, executable=executable)
+        # The standalone output must also be readable through std.lton.load.
+        (lton_packaged / "data/nested/settings.lton").write_bytes((lton_output / "settings.lton").read_bytes())
+        for executable in lton_runners:
+            invoke("--no-error-screen", lton_packaged, expected=17, executable=executable)
+        (lton_game / "data/nested/bad.lton").write_bytes(bad_lton.read_bytes())
+        result = invoke("--compile-game", root / "bad-lton-game", lton_game, expected=1)
+        assert "data/nested/bad.lton" in result.stderr, result.stderr
 
         # A compiler limit, not a parse/type error: previously only the generic
         # "Could not compile the program." message was shown on this path.
