@@ -181,7 +181,7 @@ static void lh_Joystick_getHat(LhatMachine *machine, void *context, const LhatVa
 	const char *name = "c";
 	Joystick::getConstant(j->getHat((int) lh::optNumber(arguments, count, 1, 0)), name);
 	LhatValue out = lhat_nil();
-	out = lh::pushEnum(machine, "love.joystick", "JoystickHat", name);
+	out = lh::pushEnum(machine, "love.joystick", "Hat", name);
 	answers[0] = out;
 	*answerCount = 1;
 }
@@ -226,7 +226,7 @@ static void lh_Joystick_getGamepadAxis(LhatMachine *machine, void *context, cons
 		*answerCount = 1;
 		return;
 	}
-	std::string name = lh::optEnum(machine, arguments, count, 1, "love.joystick", "GamepadAxis", "");
+	std::string name = lh::optEnum(machine, arguments, count, 1, "love.joystick", "Axis", "");
 	Joystick::GamepadAxis axis;
 	if (!Joystick::getConstant(name.c_str(), axis))
 	{
@@ -251,7 +251,7 @@ static void lh_Joystick_isGamepadDown(LhatMachine *machine, void *context, const
 	std::vector<Joystick::GamepadButton> buttons;
 	for (size_t i = 1; i < count; i++)
 	{
-		std::string name = lh::optEnum(machine, arguments, count, i, "love.joystick", "GamepadButton", "");
+		std::string name = lh::optEnum(machine, arguments, count, i, "love.joystick", "Button", "");
 		Joystick::GamepadButton button;
 		if (!Joystick::getConstant(name.c_str(), button))
 		{
@@ -299,11 +299,11 @@ bool lhopen_love_joystick(Context &ctx)
 	using namespace love::joystick;
 	if (ctx.types())
 	{
-		if (!ctx.enumType("love.joystick", "GamepadAxis", Joystick::getConstants(Joystick::GamepadAxis{})))
+		if (!ctx.enumType("love.joystick", "Axis", Joystick::getConstants(Joystick::GamepadAxis{})))
 			return false;
-		if (!ctx.enumType("love.joystick", "GamepadButton", Joystick::getConstants(Joystick::GamepadButton{})))
+		if (!ctx.enumType("love.joystick", "Button", Joystick::getConstants(Joystick::GamepadButton{})))
 			return false;
-		if (!ctx.enumType("love.joystick", "JoystickHat", Joystick::getConstants(Joystick::Hat{})))
+		if (!ctx.enumType("love.joystick", "Hat", Joystick::getConstants(Joystick::Hat{})))
 			return false;
 	}
 
@@ -327,11 +327,11 @@ bool lhopen_love_joystick(Context &ctx)
 		&& ctx.member(m, "Joystick", "getButtonCount", "f^self^ -> number^;", lh_Joystick_getButtonCount, nullptr)
 		&& ctx.member(m, "Joystick", "getHatCount", "f^self^ -> number^;", lh_Joystick_getHatCount, nullptr)
 		&& ctx.member(m, "Joystick", "getAxis", "f^self^, number^ -> number^;", lh_Joystick_getAxis, nullptr)
-		&& ctx.member(m, "Joystick", "getHat", "f^self^, number^ -> love.joystick.JoystickHat;", lh_Joystick_getHat, nullptr)
+		&& ctx.member(m, "Joystick", "getHat", "f^self^, number^ -> love.joystick.Hat;", lh_Joystick_getHat, nullptr)
 		&& ctx.member(m, "Joystick", "isDown", "f^self^, number^, ... -> bool^;", lh_Joystick_isDown, nullptr)
 		&& ctx.member(m, "Joystick", "isGamepad", "f^self^ -> bool^;", lh_Joystick_isGamepad, nullptr)
-		&& ctx.member(m, "Joystick", "getGamepadAxis", "f^self^, love.joystick.GamepadAxis -> number^;", lh_Joystick_getGamepadAxis, nullptr)
-		&& ctx.member(m, "Joystick", "isGamepadDown", "f^self^, love.joystick.GamepadButton, ... -> bool^;", lh_Joystick_isGamepadDown, nullptr)
+		&& ctx.member(m, "Joystick", "getGamepadAxis", "f^self^, love.joystick.Axis -> number^;", lh_Joystick_getGamepadAxis, nullptr)
+		&& ctx.member(m, "Joystick", "isGamepadDown", "f^self^, love.joystick.Button, ... -> bool^;", lh_Joystick_isGamepadDown, nullptr)
 		&& ctx.member(m, "Joystick", "setVibration", "p^self^, ... -> bool^;", lh_Joystick_setVibration, nullptr);
 }
 

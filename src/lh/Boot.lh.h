@@ -80,6 +80,7 @@ import^love.window
 import^love.event
 import^love.timer
 import^love.keyboard
+import^love.mouse
 import^std.math
 
 let^letters = { "n", "o", "g", "a", "m", "e" }
@@ -248,7 +249,7 @@ public^let^resize = p^width:number^, height:number^{
 
 # A click lands on a body when it is inside one of its shapes; the sky
 # takes no notice.
-public^let^mousepressed = p^x:number^, y:number^, button:number^, istouch:bool^, presses:number^{
+public^let^mousepressed = p^x:number^, y:number^, button:love.mouse.Button, istouch:bool^, presses:number^{
     for^body in^world.getBodies() {
         for^shape in^body.getShapes() {
             if^shape.testPoint(x, y) {
@@ -264,8 +265,8 @@ public^let^mousepressed = p^x:number^, y:number^, button:number^, istouch:bool^,
     }
 }
 
-public^let^keypressed = p^key:love.keyboard.KeyConstant, scancode:love.keyboard.Scancode, isrepeat:bool^{
-    if^key = love.keyboard.KeyConstant.escape { love.event.quit() }
+public^let^keypressed = p^key:love.keyboard.Key, scancode:love.keyboard.Scancode, isrepeat:bool^{
+    if^key = love.keyboard.Key.escape { love.event.quit() }
 }
 
 # A game dropped on the window is what the next boot runs (nogame.lua's

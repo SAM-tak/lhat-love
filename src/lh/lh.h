@@ -131,6 +131,10 @@ struct Context
 	bool global(const char *name, const char *signature, LhatHostFn fn, void *ctx) const;
 	bool bind(const char *name, const char *member) const;
 	bool enumType(const char *module, const char *name, const std::vector<std::string> &members) const;
+	// The same with each member's .value given, for an enum whose numbers mean
+	// something outside L^ (a mouse button is 1, 2, 3 to SDL and to LOVE).
+	bool enumType(const char *module, const char *name, const std::vector<std::string> &members,
+	              const std::vector<int64_t> &values) const;
 	template <typename T>
 	bool enumType(const char *module, const char *name, T end, bool (*constant)(T, const char *&)) const
 	{

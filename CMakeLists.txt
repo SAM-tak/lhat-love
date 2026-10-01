@@ -818,6 +818,7 @@ add_library(love_mouse_root STATIC
 	src/modules/mouse/Cursor.h
 	src/modules/mouse/Mouse.h
 	src/modules/mouse/lh_Mouse.cpp
+	src/modules/mouse/lh_Mouse.h
 )
 target_link_libraries(love_mouse_root PUBLIC
 	lovedep::Lhat

@@ -150,6 +150,20 @@ bool Context::enumType(const char *module, const char *name, const std::vector<s
 		|| noteFailure(failed, module, name);
 }
 
+bool Context::enumType(const char *module, const char *name, const std::vector<std::string> &members,
+                       const std::vector<int64_t> &values) const
+{
+	if (!types())
+		return true;
+	if (members.size() != values.size())
+		return noteFailure(failed, module, name);
+	std::vector<const char *> names;
+	for (const auto &member : members)
+		names.push_back(member.c_str());
+	return lhat_register_enum_valued(program, module, nullptr, name, names.data(), values.data(), names.size())
+		|| noteFailure(failed, module, name);
+}
+
 const char *enumName(LhatMachine *machine, LhatValue value, const char *module, const char *type)
 {
 	LhatValue declaration = lhat_nil();

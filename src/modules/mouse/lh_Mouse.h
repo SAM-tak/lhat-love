@@ -18,17 +18,11 @@
  * 3. This notice may not be removed or altered from any source distribution.
  **/
 
-#ifndef LOVE_KEYBOARD_LH_KEYBOARD_H
-#define LOVE_KEYBOARD_LH_KEYBOARD_H
+#ifndef LOVE_MOUSE_LH_MOUSE_H
+#define LOVE_MOUSE_LH_MOUSE_H
 
-// love.keyboard's two enums, for the event module as well: keypressed and
-// keyreleased hand the game a Key and a Scancode.
-//
-// The members are LOVE's constant names, except where a name is not an
-// identifier ("1", "-", "kp+", "nonus#"): those take SDL's name for the same
-// key, lowercased ("digit1", "minus", "kpplus", "nonushash"). A key outside
-// the declared list -- any character a layout produces can be a key -- is
-// Key.unknown; the scancode says where it is, textinput what it types.
+// love.mouse.Button, for the event module as well: mousepressed and
+// mousereleased hand the game one in place of LOVE's button number.
 
 #include "lh/lh.h"
 
@@ -37,10 +31,11 @@ namespace love
 namespace lh
 {
 
-LhatValue pushKey(LhatMachine *machine, const char *loveName);
-LhatValue pushScancode(LhatMachine *machine, const char *loveName);
+// LOVE's number for a button (1 left, 2 right, 3 middle, ...) as the member
+// whose .value it is; a number no member has is none.
+LhatValue pushMouseButton(LhatMachine *machine, int number);
 
 } // lh
 } // love
 
-#endif // LOVE_KEYBOARD_LH_KEYBOARD_H
+#endif // LOVE_MOUSE_LH_MOUSE_H

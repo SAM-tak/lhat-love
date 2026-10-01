@@ -30,6 +30,7 @@
 #include "lh/lh.h"
 #include "lh/Boot.h"
 #include "modules/keyboard/lh_Keyboard.h"
+#include "modules/mouse/lh_Mouse.h"
 
 #include "common/Object.h"
 
@@ -128,21 +129,25 @@ static void lh_dispatch(LhatMachine *machine, void *context, const LhatValue *ar
 
 		if ((message->name == "keypressed" || message->name == "keyreleased") && args.size() > 1)
 		{
-			args[0] = lh::pushKeyConstant(machine, lh::stringOf(args[0]));
+			args[0] = lh::pushKey(machine, lh::stringOf(args[0]));
 			args[1] = lh::pushScancode(machine, lh::stringOf(args[1]));
 		}
 
+		if ((message->name == "mousepressed" || message->name == "mousereleased") && args.size() > 2
+			&& lhat_is_number(args[2]))
+			args[2] = lh::pushMouseButton(machine, (int) lh::optNumber(args.data(), args.size(), 2, 0.0));
+
 		if (message->name == "gamepadpressed" && args.size() > 1)
-			args[1] = lh::pushEnum(machine, "love.joystick", "GamepadButton", lh::stringOf(args[1]));
+			args[1] = lh::pushEnum(machine, "love.joystick", "Button", lh::stringOf(args[1]));
 
 		if (message->name == "gamepadreleased" && args.size() > 1)
-			args[1] = lh::pushEnum(machine, "love.joystick", "GamepadButton", lh::stringOf(args[1]));
+			args[1] = lh::pushEnum(machine, "love.joystick", "Button", lh::stringOf(args[1]));
 
 		if (message->name == "gamepadaxis" && args.size() > 1)
-			args[1] = lh::pushEnum(machine, "love.joystick", "GamepadAxis", lh::stringOf(args[1]));
+			args[1] = lh::pushEnum(machine, "love.joystick", "Axis", lh::stringOf(args[1]));
 
 		if (message->name == "joystickhat" && args.size() > 2)
-			args[2] = lh::pushEnum(machine, "love.joystick", "JoystickHat", lh::stringOf(args[2]));
+			args[2] = lh::pushEnum(machine, "love.joystick", "Hat", lh::stringOf(args[2]));
 
 		if (message->name == "sensorupdated" && args.size() > 0)
 			args[0] = lh::pushEnum(machine, "love.sensor", "SensorType", lh::stringOf(args[0]));

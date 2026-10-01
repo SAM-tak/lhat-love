@@ -34,9 +34,9 @@ public^let^draw = p^{
     love.graphics.circle(love.graphics.DrawMode.line, mx, my, 12)
 }
 
-public^let^keypressed = p^key:love.keyboard.KeyConstant, scancode:love.keyboard.Scancode, isrepeat:bool^{
+public^let^keypressed = p^key:love.keyboard.Key, scancode:love.keyboard.Scancode, isrepeat:bool^{
     print($"keypressed {key} ({scancode})")
-    if^key = love.keyboard.KeyConstant.escape { love.event.quit() }
+    if^key = love.keyboard.Key.escape { love.event.quit() }
 }
 
 public^let^quit = p^-> bool^{

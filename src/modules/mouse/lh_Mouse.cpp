@@ -21,8 +21,11 @@
 // love.mouse for L^. The reference is wrap_Mouse.cpp beside this file.
 
 #include "Mouse.h"
+#include "lh_Mouse.h"
 #include "lh/lh.h"
 
+#include <cstring>
+#include <string>
 #include <vector>
 
 namespace love
@@ -79,18 +82,47 @@ static void lh_setPosition(LhatMachine *machine, void *context, const LhatValue 
 	instance()->setPosition(lh::optNumber(arguments, count, 0, 0.0), lh::optNumber(arguments, count, 1, 0.0));
 }
 
-// isDown(button, ...): LOVE's button numbers -- 1 primary, 2 secondary, 3
-// middle, SDL's own -- which name a button rather than index anything, so
-// they stay as they are while L^ counts from 0. True if any is down.
+// love.mouse.Button. Each member's .value is LOVE's number for the button
+// -- 1 left, 2 right, 3 middle, then SDL's X1 and X2 -- and none is 0, which
+// no button is. X1 is the one a browser calls back and X2 forward, so the
+// order here is not the order of the numbers.
+struct ButtonName
+{
+	const char *member;
+	int number;
+};
+
+static const ButtonName buttonNames[] =
+{
+	{"none", 0},
+	{"left", 1},
+	{"right", 2},
+	{"middle", 3},
+	{"forward", 5},
+	{"back", 4},
+	{"extra1", 6},
+	{"extra2", 7},
+	{"extra3", 8},
+};
+
+static const char *const M = "love.mouse";
+
+// isDown(button, ...): true if any of the buttons is down. none never is.
 static void lh_isDown(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
 					  LhatValue *answers, int *answerCount)
 {
-	(void) machine;
 	(void) context;
 	std::vector<int> buttons;
 	buttons.reserve(count);
 	for (size_t i = 0; i < count; i++)
-		buttons.push_back((int) lh::optNumber(arguments, count, i, 0.0));
+	{
+		const char *member = lh::enumName(machine, arguments[i], M, "Button");
+		if (*member == '\0')
+			return;
+		for (const ButtonName &b : buttonNames)
+			if (std::strcmp(b.member, member) == 0)
+				buttons.push_back(b.number);
+	}
 	answers[0] = lhat_bool(instance()->isDown(buttons));
 	*answerCount = 1;
 }
@@ -119,18 +151,38 @@ static void lh_isVisible(LhatMachine *machine, void *context, const LhatValue *a
 namespace lh
 {
 
+LhatValue pushMouseButton(LhatMachine *machine, int number)
+{
+	using namespace love::mouse;
+	// A button past the ones named here -- a mouse may have more -- is none.
+	const char *member = "none";
+	for (const ButtonName &b : buttonNames)
+		if (b.number == number)
+			member = b.member;
+	return pushEnum(machine, M, "Button", member);
+}
+
 bool lhopen_love_mouse(Context &ctx)
 {
-	if (ctx.types())
-		return true;
-
 	using namespace love::mouse;
-	const char *m = "love.mouse";
+	if (ctx.types())
+	{
+		std::vector<std::string> members;
+		std::vector<int64_t> values;
+		for (const ButtonName &b : buttonNames)
+		{
+			members.emplace_back(b.member);
+			values.push_back(b.number);
+		}
+		return ctx.enumType(M, "Button", members, values);
+	}
+
+	const char *m = M;
 	return ctx.func(m, "getPosition", "f^ -> (number^, number^);", lh_getPosition, nullptr)
 		&& ctx.func(m, "getX", "f^ -> number^;", lh_getX, nullptr)
 		&& ctx.func(m, "getY", "f^ -> number^;", lh_getY, nullptr)
 		&& ctx.func(m, "setPosition", "p^number^, number^;", lh_setPosition, nullptr)
-		&& ctx.func(m, "isDown", "f^number^, ... -> bool^;", lh_isDown, nullptr)
+		&& ctx.func(m, "isDown", "f^love.mouse.Button, ... -> bool^;", lh_isDown, nullptr)
 		&& ctx.func(m, "setVisible", "p^bool^;", lh_setVisible, nullptr)
 		&& ctx.func(m, "isVisible", "f^ -> bool^;", lh_isVisible, nullptr);
 }

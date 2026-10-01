@@ -217,7 +217,7 @@ static bool isBuiltinKey(const char *love)
 
 static bool keyArgument(LhatMachine *machine, LhatValue value, Keyboard::Key &out)
 {
-	const char *member = lh::enumName(machine, value, M, "KeyConstant");
+	const char *member = lh::enumName(machine, value, M, "Key");
 	return *member != '\0' && Keyboard::getConstant(keyNames().love(member), out);
 }
 
@@ -273,7 +273,7 @@ static void lh_getKeyFromScancode(LhatMachine *machine, void *context, const Lha
 	const char *name = nullptr;
 	if (!Keyboard::getConstant(instance()->getKeyFromScancode(s), name))
 		name = "unknown";
-	answers[0] = lh::pushKeyConstant(machine, name);
+	answers[0] = lh::pushKey(machine, name);
 	*answerCount = 1;
 }
 
@@ -335,14 +335,14 @@ static void lh_hasTextInput(LhatMachine *machine, void *context, const LhatValue
 namespace lh
 {
 
-LhatValue pushKeyConstant(LhatMachine *machine, const char *loveName)
+LhatValue pushKey(LhatMachine *machine, const char *loveName)
 {
 	using namespace love::keyboard;
 	// A character outside the declared list is still a key, but not a
 	// member: it arrives as unknown.
 	const char *known = loveName != nullptr && isBuiltinKey(loveName)
 		? keyNames().member(loveName) : "unknown";
-	return pushEnum(machine, M, "KeyConstant", known);
+	return pushEnum(machine, M, "Key", known);
 }
 
 LhatValue pushScancode(LhatMachine *machine, const char *loveName)
@@ -358,13 +358,13 @@ bool lhopen_love_keyboard(Context &ctx)
 {
 	using namespace love::keyboard;
 	if (ctx.types())
-		return ctx.enumType(M, "KeyConstant", keyNames().members(Keyboard::getConstants(Keyboard::Key {})))
+		return ctx.enumType(M, "Key", keyNames().members(Keyboard::getConstants(Keyboard::Key {})))
 			&& ctx.enumType(M, "Scancode", scancodeNames().members(Keyboard::getConstants(Keyboard::Scancode {})));
 
-	return ctx.func(M, "isDown", "f^love.keyboard.KeyConstant, ... -> bool^;", lh_isDown, nullptr)
+	return ctx.func(M, "isDown", "f^love.keyboard.Key, ... -> bool^;", lh_isDown, nullptr)
 		&& ctx.func(M, "isScancodeDown", "f^love.keyboard.Scancode, ... -> bool^;", lh_isScancodeDown, nullptr)
-		&& ctx.func(M, "getKeyFromScancode", "f^love.keyboard.Scancode -> love.keyboard.KeyConstant;", lh_getKeyFromScancode, nullptr)
-		&& ctx.func(M, "getScancodeFromKey", "f^love.keyboard.KeyConstant -> love.keyboard.Scancode;", lh_getScancodeFromKey, nullptr)
+		&& ctx.func(M, "getKeyFromScancode", "f^love.keyboard.Scancode -> love.keyboard.Key;", lh_getKeyFromScancode, nullptr)
+		&& ctx.func(M, "getScancodeFromKey", "f^love.keyboard.Key -> love.keyboard.Scancode;", lh_getScancodeFromKey, nullptr)
 		&& ctx.func(M, "setKeyRepeat", "p^bool^;", lh_setKeyRepeat, nullptr)
 		&& ctx.func(M, "hasKeyRepeat", "f^ -> bool^;", lh_hasKeyRepeat, nullptr)
 		&& ctx.func(M, "setTextInput", "p^bool^;", lh_setTextInput, nullptr)

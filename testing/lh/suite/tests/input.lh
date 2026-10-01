@@ -25,17 +25,17 @@ public^let^run = p^{
     test.isTrue("setTextInput round trips", love.keyboard.hasTextInput() = !typing)
     love.keyboard.setTextInput(typing)
 
-    test.isFalse("no key is down", love.keyboard.isDown(love.keyboard.KeyConstant.a))
+    test.isFalse("no key is down", love.keyboard.isDown(love.keyboard.Key.a))
     test.isFalse("no scancode is down", love.keyboard.isScancodeDown(love.keyboard.Scancode.a))
     test.isFalse("none of several keys is down",
-        love.keyboard.isDown(love.keyboard.KeyConstant.escape, love.keyboard.KeyConstant.digit1,
-            love.keyboard.KeyConstant.kpplus))
+        love.keyboard.isDown(love.keyboard.Key.escape, love.keyboard.Key.digit1,
+            love.keyboard.Key.kpplus))
     # A name that is not an identifier takes SDL's: "1" is digit1, "kp+" kpplus.
-    test.text("digit1 is LOVE's \"1\"", "digit1", love.keyboard.KeyConstant.digit1.tostring())
+    test.text("digit1 is LOVE's \"1\"", "digit1", love.keyboard.Key.digit1.tostring())
     test.isTrue("escape is escape whatever the layout",
-        love.keyboard.getKeyFromScancode(love.keyboard.Scancode.escape) = love.keyboard.KeyConstant.escape)
+        love.keyboard.getKeyFromScancode(love.keyboard.Scancode.escape) = love.keyboard.Key.escape)
     test.isTrue("and back",
-        love.keyboard.getScancodeFromKey(love.keyboard.KeyConstant.escape) = love.keyboard.Scancode.escape)
+        love.keyboard.getScancodeFromKey(love.keyboard.Key.escape) = love.keyboard.Scancode.escape)
 
     test.begin("love.mouse")
 
@@ -51,18 +51,23 @@ public^let^run = p^{
     test.isTrue("setVisible round trips", love.mouse.isVisible() = !visible)
     love.mouse.setVisible(visible)
 
-    test.isFalse("no mouse button is down", love.mouse.isDown(1))
+    test.isFalse("no mouse button is down", love.mouse.isDown(love.mouse.Button.left))
+    test.isFalse("none is never down", love.mouse.isDown(love.mouse.Button.none))
+    # .value is LOVE's button number; back and forward are SDL's X1 and X2.
+    test.number("left is button 1", 1, love.mouse.Button.left.value)
+    test.number("right is button 2", 2, love.mouse.Button.right.value)
+    test.number("back is button 4", 4, love.mouse.Button.back.value)
 
     test.begin("love.joystick")
 
-    let^button : any^ = love.joystick.GamepadButton.a
-    test.isTrue("gamepad buttons have a nominal type", button fits^love.joystick.GamepadButton)
-    test.isFalse("a button is not an axis", button fits^love.joystick.GamepadAxis)
+    let^button : any^ = love.joystick.Button.a
+    test.isTrue("gamepad buttons have a nominal type", button fits^love.joystick.Button)
+    test.isFalse("a button is not an axis", button fits^love.joystick.Axis)
 
     # Check these signatures even when no physical controller is connected.
     let^readGamepad = f^stick:love.joystick.Joystick -> bool^ {
-        return^stick.isGamepadDown(love.joystick.GamepadButton.a, love.joystick.GamepadButton.b)
-            or^stick.getGamepadAxis(love.joystick.GamepadAxis.leftx) > 0.5
+        return^stick.isGamepadDown(love.joystick.Button.a, love.joystick.Button.b)
+            or^stick.getGamepadAxis(love.joystick.Axis.leftx) > 0.5
     }
 
     let^sticks = love.joystick.getJoysticks()

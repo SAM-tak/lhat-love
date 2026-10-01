@@ -32,8 +32,8 @@ public^let^ draw = p^ {
     love.graphics.rectangle(love.graphics.DrawMode.fill, x, 100, 50, 50)
 }
 
-public^let^ keypressed = p^key:love.keyboard.KeyConstant, scancode:love.keyboard.Scancode, isrepeat:bool^ {
-    if^ key = love.keyboard.KeyConstant.escape { love.event.quit() }
+public^let^ keypressed = p^key:love.keyboard.Key, scancode:love.keyboard.Scancode, isrepeat:bool^ {
+    if^ key = love.keyboard.Key.escape { love.event.quit() }
 }
 
 public^let^ quit = p^ -> bool^ {
@@ -226,29 +226,32 @@ love.graphics.setBlendMode(love.graphics.BlendMode.alpha)
 let^mode, alpha = love.graphics.getBlendMode()
 love.graphics.setBlendMode(mode, alpha)
 
-public^let^gamepadpressed = p^stick:love.joystick.Joystick, button:love.joystick.GamepadButton {
-    if^button = love.joystick.GamepadButton.a { print("A pressed") }
+public^let^gamepadpressed = p^stick:love.joystick.Joystick, button:love.joystick.Button {
+    if^button = love.joystick.Button.a { print("A pressed") }
 }
 ```
 
 | モジュール | enum |
 | --- | --- |
 | `love.graphics` | `DrawMode`, `ArcMode`, `AlignMode`, `BlendMode`, `BlendAlphaMode`, `StencilMode`, `LineStyle`, `LineJoin`, `FilterMode`, `WrapMode`, `PixelFormat`, `MipmapMode`, `MeshDrawMode`, `Usage`, `ParticleInsertMode`, `AreaSpreadDistribution` |
-| `love.joystick` | `GamepadButton`, `GamepadAxis`, `JoystickHat` |
+| `love.joystick` | `Button`, `Axis`, `Hat` |
 | `love.audio` | `SourceType`, `TimeUnit` |
 | `love.data` | `EncodeFormat`, `HashFunction`, `CompressedDataFormat` |
-| `love.keyboard` | `KeyConstant`, `Scancode` |
+| `love.keyboard` | `Key`, `Scancode` |
+| `love.mouse` | `Button` |
 | `love.physics` | `BodyType`, `ShapeType`, `JointType` |
 | `love.filesystem` | `FileMode`, `FileType` |
 | `love.sensor` | `SensorType` |
 | `love.system` | `PowerState` |
 
-`gamepadpressed` / `gamepadreleased` の第2引数は `GamepadButton`、`gamepadaxis` の第2引数は `GamepadAxis`、`joystickhat` の第3引数は `JoystickHat`、`sensorupdated` の第1引数は `SensorType`。
-`keypressed` / `keyreleased` の第1引数は `KeyConstant`、第2引数は `Scancode`。
+`gamepadpressed` / `gamepadreleased` の第2引数は `Button`、`gamepadaxis` の第2引数は `Axis`、`joystickhat` の第3引数は `Hat`、`sensorupdated` の第1引数は `SensorType`。
+`keypressed` / `keyreleased` の第1引数は `Key`、第2引数は `Scancode`。`mousepressed` / `mousereleased` の第3引数は `love.mouse.Button`。
+
+`love.mouse.Button` のメンバは `none` `left` `right` `middle` `forward` `back` `extra1` `extra2` `extra3`。ほかの enum と違い、`.value` が LÖVE のボタン番号そのもの（`left` = 1、`right` = 2、`middle` = 3、`back` = 4、`forward` = 5、`extra1`〜`extra3` = 6〜8、`none` = 0）。`back` / `forward` は SDL の X1 / X2（ブラウザの戻る・進むと同じ）。9 番以降のボタンは `none` で届き、`isDown(none)` は常に偽。
 
 キーとスキャンコードは、LÖVE の定数名が識別子にならないものだけ **SDL の名前を小文字にした綴り**を使う（`"1"` → `digit1`、`"-"` → `minus`、`"kp+"` → `kpplus`、`"nonus#"` → `nonushash`。数字には `digit` を付ける）。識別子になる名前（`a`、`escape`、`kp1`、`lshift` など）は LÖVE と同じ。SDL 自身の命名に従うので、同じ記号でもキーとスキャンコードで綴りが違うものがある（`'` はキーが `quote`、スキャンコードが `apostrophe`）。
 
-LÖVE ではキー配列が出す文字ならどれでもキーになりうる（ドイツ語配列の `ä` など）。宣言に無いそうした文字は `KeyConstant.unknown` で届く。配列に依らない入力は `Scancode`（物理位置、閉じた集合）で、打たれた文字は `textinput` で受け取る。
+LÖVE ではキー配列が出す文字ならどれでもキーになりうる（ドイツ語配列の `ä` など）。宣言に無いそうした文字は `Key.unknown` で届く。配列に依らない入力は `Scancode`（物理位置、閉じた集合）で、打たれた文字は `textinput` で受け取る。
 `newCanvas` の設定内の `format` / `mipmaps` も `PixelFormat` / `MipmapMode` を渡す。
 省略した引数の既定値は従来どおり。たとえば `setFilter(FilterMode.nearest)` は min / mag 両方を nearest にする。
 
