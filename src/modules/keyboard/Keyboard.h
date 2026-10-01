@@ -598,6 +598,12 @@ public:
 	static bool getConstant(const char *in, ModifierKey &out);
 	static bool getConstant(ModifierKey in, const char *&out);
 
+	// The key constants the table starts with, and every scancode. A key
+	// outside the first list is still a key -- any character can be one --
+	// but it has no fixed name to declare.
+	static std::vector<std::string> getConstants(Key);
+	static std::vector<std::string> getConstants(Scancode);
+
 protected:
 
 	Keyboard(const char *name);

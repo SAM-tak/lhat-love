@@ -16,6 +16,7 @@ module^ main
 
 import^ love.graphics
 import^ love.event
+import^ love.keyboard
 
 var^ x = 0
 
@@ -31,8 +32,8 @@ public^let^ draw = p^ {
     love.graphics.rectangle(love.graphics.DrawMode.fill, x, 100, 50, 50)
 }
 
-public^let^ keypressed = p^key:string^, scancode:string^, isrepeat:bool^ {
-    if^ key = "escape" { love.event.quit() }
+public^let^ keypressed = p^key:love.keyboard.KeyConstant, scancode:love.keyboard.Scancode, isrepeat:bool^ {
+    if^ key = love.keyboard.KeyConstant.escape { love.event.quit() }
 }
 
 public^let^ quit = p^ -> bool^ {
@@ -236,16 +237,22 @@ public^let^gamepadpressed = p^stick:love.joystick.Joystick, button:love.joystick
 | `love.joystick` | `GamepadButton`, `GamepadAxis`, `JoystickHat` |
 | `love.audio` | `SourceType`, `TimeUnit` |
 | `love.data` | `EncodeFormat`, `HashFunction`, `CompressedDataFormat` |
+| `love.keyboard` | `KeyConstant`, `Scancode` |
 | `love.physics` | `BodyType`, `ShapeType`, `JointType` |
 | `love.filesystem` | `FileMode`, `FileType` |
 | `love.sensor` | `SensorType` |
 | `love.system` | `PowerState` |
 
 `gamepadpressed` / `gamepadreleased` の第2引数は `GamepadButton`、`gamepadaxis` の第2引数は `GamepadAxis`、`joystickhat` の第3引数は `JoystickHat`、`sensorupdated` の第1引数は `SensorType`。
+`keypressed` / `keyreleased` の第1引数は `KeyConstant`、第2引数は `Scancode`。
+
+キーとスキャンコードは、LÖVE の定数名が識別子にならないものだけ **SDL の名前を小文字にした綴り**を使う（`"1"` → `digit1`、`"-"` → `minus`、`"kp+"` → `kpplus`、`"nonus#"` → `nonushash`。数字には `digit` を付ける）。識別子になる名前（`a`、`escape`、`kp1`、`lshift` など）は LÖVE と同じ。SDL 自身の命名に従うので、同じ記号でもキーとスキャンコードで綴りが違うものがある（`'` はキーが `quote`、スキャンコードが `apostrophe`）。
+
+LÖVE ではキー配列が出す文字ならどれでもキーになりうる（ドイツ語配列の `ä` など）。宣言に無いそうした文字は `KeyConstant.unknown` で届く。配列に依らない入力は `Scancode`（物理位置、閉じた集合）で、打たれた文字は `textinput` で受け取る。
 `newCanvas` の設定内の `format` / `mipmaps` も `PixelFormat` / `MipmapMode` を渡す。
 省略した引数の既定値は従来どおり。たとえば `setFilter(FilterMode.nearest)` は min / mag 両方を nearest にする。
 
-文字列が必要なパス・テキスト・シェーダーの uniform 名・キー名（Unicode 文字も受け取る）などは文字列のまま。
+文字列が必要なパス・テキスト・シェーダーの uniform 名などは文字列のまま。
 `conf.lton` は `love.*` を参照できないため、fullscreen などの設定値も文字列を使う。
 enum の整数値は C++ の列挙値を公開する契約ではない。メンバ名と型を使うこと。
 

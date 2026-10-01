@@ -29,6 +29,7 @@
 #include "Event.h"
 #include "lh/lh.h"
 #include "lh/Boot.h"
+#include "modules/keyboard/lh_Keyboard.h"
 
 #include "common/Object.h"
 
@@ -124,6 +125,12 @@ static void lh_dispatch(LhatMachine *machine, void *context, const LhatValue *ar
 		args.reserve(message->args.size());
 		for (const Variant &v : message->args)
 			args.push_back(lh::pushVariant(machine, *binding->registry, v));
+
+		if ((message->name == "keypressed" || message->name == "keyreleased") && args.size() > 1)
+		{
+			args[0] = lh::pushKeyConstant(machine, lh::stringOf(args[0]));
+			args[1] = lh::pushScancode(machine, lh::stringOf(args[1]));
+		}
 
 		if (message->name == "gamepadpressed" && args.size() > 1)
 			args[1] = lh::pushEnum(machine, "love.joystick", "GamepadButton", lh::stringOf(args[1]));

@@ -79,6 +79,7 @@ import^love.physics
 import^love.window
 import^love.event
 import^love.timer
+import^love.keyboard
 import^std.math
 
 let^letters = { "n", "o", "g", "a", "m", "e" }
@@ -263,8 +264,8 @@ public^let^mousepressed = p^x:number^, y:number^, button:number^, istouch:bool^,
     }
 }
 
-public^let^keypressed = p^key:string^, scancode:string^, isrepeat:bool^{
-    if^key = "escape" { love.event.quit() }
+public^let^keypressed = p^key:love.keyboard.KeyConstant, scancode:love.keyboard.Scancode, isrepeat:bool^{
+    if^key = love.keyboard.KeyConstant.escape { love.event.quit() }
 }
 
 # A game dropped on the window is what the next boot runs (nogame.lua's

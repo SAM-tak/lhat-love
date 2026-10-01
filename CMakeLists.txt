@@ -769,6 +769,7 @@ add_library(love_keyboard_root STATIC
 	src/modules/keyboard/Keyboard.cpp
 	src/modules/keyboard/Keyboard.h
 	src/modules/keyboard/lh_Keyboard.cpp
+	src/modules/keyboard/lh_Keyboard.h
 )
 target_link_libraries(love_keyboard_root PUBLIC
 	lovedep::Lhat

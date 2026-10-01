@@ -25,8 +25,17 @@ public^let^run = p^{
     test.isTrue("setTextInput round trips", love.keyboard.hasTextInput() = !typing)
     love.keyboard.setTextInput(typing)
 
-    test.isFalse("no key is down", love.keyboard.isDown("a"))
-    test.isFalse("no scancode is down", love.keyboard.isScancodeDown("a"))
+    test.isFalse("no key is down", love.keyboard.isDown(love.keyboard.KeyConstant.a))
+    test.isFalse("no scancode is down", love.keyboard.isScancodeDown(love.keyboard.Scancode.a))
+    test.isFalse("none of several keys is down",
+        love.keyboard.isDown(love.keyboard.KeyConstant.escape, love.keyboard.KeyConstant.digit1,
+            love.keyboard.KeyConstant.kpplus))
+    # A name that is not an identifier takes SDL's: "1" is digit1, "kp+" kpplus.
+    test.text("digit1 is LOVE's \"1\"", "digit1", love.keyboard.KeyConstant.digit1.tostring())
+    test.isTrue("escape is escape whatever the layout",
+        love.keyboard.getKeyFromScancode(love.keyboard.Scancode.escape) = love.keyboard.KeyConstant.escape)
+    test.isTrue("and back",
+        love.keyboard.getScancodeFromKey(love.keyboard.KeyConstant.escape) = love.keyboard.Scancode.escape)
 
     test.begin("love.mouse")
 

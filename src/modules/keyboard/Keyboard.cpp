@@ -573,6 +573,30 @@ StringMap<Keyboard::Scancode, Keyboard::SCANCODE_MAX_ENUM>::Entry Keyboard::scan
 
 StringMap<Keyboard::Scancode, Keyboard::SCANCODE_MAX_ENUM> Keyboard::scancodes(Keyboard::scancodeEntries, sizeof(Keyboard::scancodeEntries));
 
+// getConstant(const char *, Key &) adds every character it is asked about to
+// stringToKey, so the table grows while a game runs. The first call takes
+// the names, and builtinKeysTaken below makes that call during static
+// initialization -- after stringToKey, which is defined above in this file,
+// and before anything can ask about a character.
+std::vector<std::string> Keyboard::getConstants(Key)
+{
+	static const std::vector<std::string> names = []
+	{
+		std::vector<std::string> taken;
+		for (const auto &kvp : stringToKey)
+			taken.push_back(kvp.first);
+		return taken;
+	}();
+	return names;
+}
+
+[[maybe_unused]] static const bool builtinKeysTaken = !Keyboard::getConstants(Keyboard::Key {}).empty();
+
+std::vector<std::string> Keyboard::getConstants(Scancode)
+{
+	return scancodes.getNames();
+}
+
 StringMap<Keyboard::ModifierKey, Keyboard::MODKEY_MAX_ENUM>::Entry Keyboard::modifierEntries[] =
 {
 	{"numlock", MODKEY_NUMLOCK},
