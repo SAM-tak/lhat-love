@@ -704,8 +704,8 @@ static std::string compileOutput(Runtime &runtime, Loader &loader, const std::st
 			continue;
 		uint8_t *bytes = nullptr;
 		size_t length = 0;
-		if (!lhat_unit_write_binary(u, debugNames, &bytes, &length))
-			return "Could not serialize the compiled unit " + unit;
+		if (lhat_unit_write_binary(u, debugNames, &bytes, &length) != LHAT_WRITE_OK)
+			return "Could not serialize the compiled unit " + unit + "\n" + runtime.compileDiagnostics();
 		makeParents(to, unit);
 		bool ok = writeBytes(to + "/" + unit, bytes, length);
 		lhat_free(bytes);
@@ -750,7 +750,7 @@ static std::string dumpEmbedded(Runtime &runtime, Loader &loader, const std::str
 			continue;
 		uint8_t *bytes = nullptr;
 		size_t length = 0;
-		if (!lhat_unit_write_binary(u, debugNames, &bytes, &length))
+		if (lhat_unit_write_binary(u, debugNames, &bytes, &length) != LHAT_WRITE_OK)
 			return std::string("Could not serialize the compiled unit ") + path;
 		bool ok = writeBytes(to + "/" + path + ".bin", bytes, length);
 		lhat_free(bytes);
