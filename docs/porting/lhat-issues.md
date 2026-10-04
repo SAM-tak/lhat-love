@@ -13,6 +13,17 @@ lhatove の移植中に見つかった、lhat 本体で直すべき事項。解�
 
 ## 解決済み
 
+- **複数 task ワーカーによるメンバー誤読・二重解放**（2026-10-04）
+  → lhat `56cf7cf fix: transfer task results once and isolate member caches per VM`。
+  共有 chunk 上のメンバーキャッシュを VM ごとに分離。
+  LÖVE 不要の20行の再現では、修正前に2ワーカーで10/10回別ワーカーの値を読み、
+  修正後は10/10回正常。Vanguard Princess の読み込みキャンセル→再入場→試合開始も
+  2ワーカーで3/3回通過。詳細とログは同プロジェクトの
+  `TechnicalDocuments/0029-core-member-race-repro.md`。
+  以前のゲームの ASAN 二重解放は通常ビルドで再現しなくなった。修正後の ASAN は未再実施。
+  ローカルビルドはこの修正版を使用。修正コミットが origin に未公開のため、
+  `lhat.rev` はまだ更新していない。CI / 配布用の固定先は公開後に更新・再検証する必要がある。
+
 - **親モジュールを import した後に子を import すると SEALED**（`995d0e8` で直った件の、`d7dc455` による再発）
   → `b10f3fe fix: nobody writes the program's shared tables, and the host gets a root`。
   原因は `src/compile.c` の `LHAT_NODE_IMPORT_STMT` で、`import^love.event` が読んだ子を接頭辞

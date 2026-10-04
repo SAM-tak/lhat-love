@@ -22,6 +22,7 @@
 
 #include "stdlib/channel.h"
 #include "stdlib/thread.h"
+#include "stdlib/task.h"
 
 // 05 の 10.7: the signature table, for a build without the front end.
 #ifdef LHATOVE_VM_ONLY
@@ -421,7 +422,10 @@ Runtime::~Runtime()
 	// owns, and a named channel may be holding a closure of one. Both have
 	// to be given up before anything below is torn down.
 	if (program_ != nullptr)
+	{
+		lhatstdlib_task_stop(program_);
 		lhatstdlib_thread_join_all(program_);
+	}
 	lhatstdlib_channel_forget_named();
 	// The lot next, so a Parked value released by a wrapper's dispose below
 	// does not write into the heap being torn down.

@@ -68,6 +68,7 @@
 #include "stdlib/mathvector2.h"
 #include "stdlib/regex.h"
 #include "stdlib/thread.h"
+#include "stdlib/task.h"
 
 // 09 章: the debug adapter, when this build carries it.
 #ifdef LHATOVE_WITH_DAP
@@ -184,6 +185,7 @@ static bool registerStdlib(LhatProgram *program)
 		// handle's awaitable() completes, so a task may park on a worker
 		// rather than ask after it; a game pumps it with std.async.wait(0).
 		|| !lhatstdlib_thread_register(program)
+		|| !lhatstdlib_task_register(program)
 		|| !lhatstdlib_async_register(program)
 		|| !lhatstdlib_channel_register(program))
 		return false;
