@@ -4,5 +4,5 @@ module^raisegame
 import^love.graphics
 
 public^let^draw = p^{
-    love.graphics.rectangle(love.graphics.DrawMode.filled, 0, 0, 10, 10)
+    love.graphics.rectangle(love.graphics.DrawMode.fill, 0, 0, 10, 10)
 }
