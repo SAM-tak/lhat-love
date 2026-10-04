@@ -48,5 +48,7 @@ if ($line.Length -gt 0) { [void]$text.AppendLine($line.ToString()) }
 [void]$text.AppendLine()
 [void]$text.AppendLine("static const unsigned long ${Name}_length = $($bytes.Length)UL;")
 
-[System.IO.File]::WriteAllText($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Out), $text.ToString())
+# LF, as the repository stores it: CI compares a regenerated file with the
+# committed one, and a line ending must not be what tells them apart.
+[System.IO.File]::WriteAllText($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Out), $text.ToString().Replace("`r`n", "`n"))
 Write-Host "wrote $Out ($($bytes.Length) bytes as a C array)"

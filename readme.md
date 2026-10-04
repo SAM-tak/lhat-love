@@ -61,10 +61,11 @@ You need:
 
 ```powershell
 git clone https://github.com/SAM-tak/lhat ..\lhat   # once
+git -C ..\lhat checkout (Get-Content lhat.rev)       # the L^ commit this repository is pinned to
 .\scripts\build.ps1
 ```
 
-The script clones [megasource][megasource] (LÖVE's bundle of Windows dependencies) next to this repository if it is missing, links this repository into it as `libs\love`, then configures and builds with clang-cl and Ninja. The executables end up in `build\love\Release\`.
+The script clones [megasource][megasource] (LÖVE's bundle of Windows dependencies) next to this repository if it is missing, at the commit `megasource.rev` pins, links this repository into it as `libs\love`, then configures and builds with clang-cl and Ninja. The executables end up in `build\love\Release\`.
 
 Options:
 

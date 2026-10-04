@@ -63,11 +63,38 @@ if (-not (Test-Path (Join-Path $LhatDir "include/lhat.h"))) {
     throw "lhat not found at '$LhatDir' (expected include/lhat.h). Pass -LhatDir."
 }
 
+# lhat.rev and megasource.rev are the commits CI and releases build against.
+# A local build takes whatever the checkouts hold -- that is how lhat is
+# developed -- so a difference is only worth a word, not a stop.
+function Get-Pin([string]$name) {
+    $file = Join-Path $repoRoot "$name.rev"
+    if (Test-Path $file) { return (Get-Content $file -TotalCount 1).Trim() }
+    return $null
+}
+function Test-Pin([string]$name, [string]$dir) {
+    $pinned = Get-Pin $name
+    if (-not $pinned) { return }
+    $head = git -C $dir rev-parse HEAD 2>$null
+    if ($LASTEXITCODE -eq 0 -and $head -and $head.Trim() -ne $pinned) {
+        Write-Warning ("$name at '$dir' is $($head.Trim().Substring(0, 9)), not the pinned " +
+            "$($pinned.Substring(0, 9)) ($name.rev). CI builds the pinned one; " +
+            "scripts\pin.ps1 $name moves the pin.")
+    }
+}
+Test-Pin "lhat" $LhatDir
+
 if (-not (Test-Path (Join-Path $MegasourceDir "CMakeLists.txt"))) {
     Write-Host "Cloning megasource into $MegasourceDir"
     git clone https://github.com/love2d/megasource.git $MegasourceDir
     if ($LASTEXITCODE -ne 0) { throw "megasource clone failed" }
+    # A fresh clone may as well start where CI does.
+    $pinned = Get-Pin "megasource"
+    if ($pinned) {
+        git -C $MegasourceDir checkout --quiet $pinned
+        if ($LASTEXITCODE -ne 0) { throw "megasource has no commit $pinned (megasource.rev)" }
+    }
 }
+Test-Pin "megasource" $MegasourceDir
 
 # megasource expects this repo at libs/love; a junction avoids copying and
 # needs no admin rights.

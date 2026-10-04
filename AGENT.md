@@ -40,7 +40,7 @@ megasource（love2d 公式の Windows 依存関係一括ビルドリポジトリ
 
 **VM のみビルドの生成物は処理系に依らない** — バイナリの指紋は構成上限・命令数・命令幅・`LHAT_VERSION` だけ（lhat `src/serialize.c`）。clang で作った `Signatures.h` の MSVC 版 VM も、その逆も動く（確認済み）。
 
-L^ ランタイムの場所は CMake オプション `LHATOVE_LHAT_DIR`（デフォルト `../lhat`）。
+L^ ランタイムの場所は CMake オプション `LHATOVE_LHAT_DIR`（デフォルト `../lhat`）。 CI とリリースが使う lhat と megasource のコミットは `lhat.rev` / `megasource.rev`（下の CI の節）。
 
 **配布用ビルド**（`-Shipping` = `-DLHATOVE_WITH_DAP=OFF`）は L^ のデバッガを丸ごと落とす — DAP アダプタ（`lhatdap` は生成されない）だけでなく、`LHAT_WITH_DEBUGGER=OFF` で VM 側の line hook も。2 つは連動する必要がある（lhat 側で `LHAT_BUILD_DAP` は `LHAT_WITH_DEBUGGER` を要求する）。実測で love.dll が 34KB、`lhat.lib` が 16KB 小さくなる。`--dap` を渡すと「this build carries no debugger」と言って普通に走る。
 
@@ -88,11 +88,11 @@ L^ ランタイムの場所は CMake オプション `LHATOVE_LHAT_DIR`（デフ
 Windows のみ。公開リポジトリなので標準ランナーは無料。`.github/workflows/` の `ci.yml`（main への push と PR）と `release.yml`（`v*` タグ。手動起動はビルドと検証だけで公開しない）が `build.yml` を呼ぶ。
 
 - `build.yml` は 1 ジョブで直列。**RelWithDebInfo（full）** をビルド → `scripts/package.ps1` で配布形にして、そのパッケージで suite を走らせる → suite を `--compile-game` → 生成物を再生成（下記）→ **VmOnly-Shipping** をビルド → そのパッケージでコンパイル済み suite を走らせる。VM 版は full の成果物を要るので並列にできない
-- lhat と megasource は**先端**を取る。lhat の版が進むとコミット済みの生成物が古くなる。CI は `regen-generated.ps1` で作り直してから VM 版を組み、コミット済みと違えば警告を出す（直して commit する）。取ったコミットは各パッケージの `build-info.txt` に入る
+- **lhat と megasource はコミットを固定する**: リポジトリ直下の `lhat.rev` / `megasource.rev`（40 桁のハッシュ 1 行ずつ）を CI が checkout する。だから同じコミットは常に同じ L^ と依存で組まれ、タグを打ち直しても同じ物になる（本家 LÖVE の CI は megasource の先端を取っていて、固定はしていない）。固定を動かすのは `scripts/pin.ps1 lhat` / `pin.ps1 megasource`（兄弟ディレクトリの HEAD を書く。作業ツリーが汚れている時と、HEAD が origin に無い時は断る）。lhat を動かしたら組み直して `regen-generated.ps1` を走らせ、`lhat.rev` と `src/lh` を**一緒に** commit する — CI は再生成した生成物がコミット済みと違えば**失敗する**（固定したのだから一致するはず）。手元のビルドは兄弟の作業ツリーをそのまま使い、`.rev` と違えば `build.ps1` が警告だけ出す（megasource を新しく clone する時は固定のコミットへ checkout する）。取ったコミットは各パッケージの `build-info.txt` に入る
 - Release に載るのは `lhat-love-<タグ>-win-x64-relwithdebinfo.zip`（シンボルは別の `-pdb.zip`）と `-vmonly-shipping.zip`
 - ヘッドレスの GL は Mesa（`.github/actions/mesa`、upstream LÖVE の CI と同じ物）。音は `testing/resources/alsoft.conf`（wave 出力）で、**cwd に `output.wav` を書く** — 手元で `ALSOFT_CONF` を指して走らせると出る
 - `scripts/package.ps1`: `cmake --install` は megasource の最上位規則を通り、誰もリンクしない LuaJIT の `lua51.dll` を要求して落ちる。だから love の `cmake_install.cmake` を直接走らせ、install 規則に無い `OpenAL32.dll` を足し、lhat の `include/` `lib/` を除く。エンジンの DLL 名は構成で違う（Debug / Release が `love.dll`、RelWithDebInfo が `liblove.dll`）
-- **まだ Actions では走らせていない**（手元で各段を実測しただけ）。初回の実行で見るべきは、ランナーに clang-cl と Ninja があるか、パスの長さ、Mesa 上で suite が通るか
+- 生成物は LF で書く（`bin2header.ps1`）。CI の比較は `git diff` なので、改行コードの違いで落ちないように
 
 ## 移植規約
 

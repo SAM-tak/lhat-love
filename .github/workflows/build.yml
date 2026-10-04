@@ -13,12 +13,14 @@
 # units as bytes (src/lh/*.h, checked in), and those are stamped with lhat's
 # version: an engine built from ones made under another version refuses to
 # start. lhat is built from its tip, so its version can be ahead of what is
-# checked in. The full build regenerates them, the VM-only one is built from
-# those, and a run that finds the checked-in ones stale says so.
+# checked in. With lhat pinned they have to be what the pinned commit makes:
+# the full build regenerates them and the run fails if they differ.
 #
-# The inputs are other repositories' tips: L^ is built from the tree next to
-# this one (LHATOVE_LHAT_DIR, ../lhat) and megasource supplies the Windows
-# dependencies. Their revisions go into the packages.
+# L^ is built from source next to this repository (LHATOVE_LHAT_DIR,
+# ../lhat) and megasource supplies the Windows dependencies. Each is checked
+# out at the commit its .rev file pins (lhat.rev, megasource.rev), so a
+# commit of this repository always builds against the same two
+# (scripts/pin.ps1 moves a pin). Both revisions go into the packages.
 name: build
 
 on:
@@ -37,9 +39,20 @@ jobs:
         with:
           path: lhat-love
 
+      - name: Read the pins
+        id: pin
+        shell: pwsh
+        run: |
+          foreach ($name in 'lhat', 'megasource') {
+            $rev = (Get-Content "lhat-love\$name.rev" -TotalCount 1).Trim()
+            if ($rev -notmatch '^[0-9a-f]{40}$') { throw "$name.rev holds '$rev', not a full commit hash." }
+            "$name=$rev" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
+
       - uses: actions/checkout@v5
         with:
           repository: SAM-tak/lhat
+          ref: ${{ steps.pin.outputs.lhat }}
           path: lhat
 
       # build.ps1 clones megasource when it is missing; a checkout does the
@@ -47,6 +60,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: love2d/megasource
+          ref: ${{ steps.pin.outputs.megasource }}
           path: megasource
 
       - name: Build relwithdebinfo
@@ -80,9 +94,9 @@ jobs:
           git -C lhat-love diff --quiet -- src/lh
           if ($LASTEXITCODE -ne 0) {
             git -C lhat-love diff --stat -- src/lh
-            Write-Host "::warning title=Generated files are stale::src/lh/Signatures.h, BootBinary.h and NogameBinary.h are not what this lhat produces. Run scripts/regen-generated.ps1 and commit the result."
+            Write-Host "::error title=Generated files are stale::src/lh/Signatures.h, BootBinary.h and NogameBinary.h are not what the pinned lhat produces. Build against lhat.rev, run scripts/regen-generated.ps1 and commit the result."
+            exit 1
           }
-          exit 0
 
       - name: Build vmonly-shipping
         shell: pwsh
