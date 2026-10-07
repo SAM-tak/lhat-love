@@ -56,19 +56,29 @@ jobs:
           done
           ls -l
 
-      # The inputs are other repositories' tips at the time of the build, so
-      # the revisions are what makes this release reproducible.
+      # Tags are v<LOVE major>.<LOVE minor>.<build>. A tag with a pre-release
+      # part (v12.0.0-alpha.1) is published as a pre-release, which is what
+      # every release is while LOVE 12.0 itself is still in development.
+      # The revisions the build took (lhat.rev and megasource.rev pin them)
+      # go into the notes, so the release says what it was made from.
       - name: Attach to the release
         run: |
           {
+            echo 'LÔVE: LÖVE 12.0 with L^ (https://github.com/SAM-tak/lhat) in place of Lua.'
+            case "$GITHUB_REF_NAME" in
+              *-*) echo 'A pre-release, on LÖVE 12.0 as it stands in development upstream -- not a LÖVE release.' ;;
+            esac
+            echo
             echo '```'
             cat info/build-info.txt
             echo '```'
           } > notes.md
+          prerelease=
+          case "$GITHUB_REF_NAME" in *-*) prerelease=--prerelease ;; esac
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" dist/* --clobber
           else
-            gh release create "$GITHUB_REF_NAME" --generate-notes \
+            gh release create "$GITHUB_REF_NAME" $prerelease --generate-notes \
               --notes-file notes.md dist/*
           fi
         env:
