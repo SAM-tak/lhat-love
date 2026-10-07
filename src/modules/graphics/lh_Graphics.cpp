@@ -149,7 +149,11 @@ static void lh_isActive(LhatMachine *machine, void *context, const LhatValue *ar
 	(void) context;
 	(void) arguments;
 	(void) count;
-	answers[0] = lhat_bool(instance()->isActive());
+	// conf.lton may leave love.graphics out; its functions stay registered,
+	// so this answers for a module that is not there. boot.lua asked
+	// "love.graphics and love.graphics.isActive()" -- this is that question.
+	Graphics *graphics = instance();
+	answers[0] = lhat_bool(graphics != nullptr && graphics->isActive());
 	*answerCount = 1;
 }
 

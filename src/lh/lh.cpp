@@ -1023,15 +1023,25 @@ LhatValue raise(LhatMachine *machine, const std::string &message)
 	return lhat_nil();
 }
 
+// No C++ exception may leave a host function: the frames above it are the
+// VM's C, which cannot unwind, and one that tried would end the process in
+// std::terminate with nothing said. luax_catchexcept caught every
+// std::exception for the same reason. A love::Exception is LOVE saying what
+// went wrong; anything else -- std::out_of_range from a vector, bad_alloc --
+// is a fault inside the engine, and is reported the same way.
 void guard(LhatMachine *machine, const std::function<void()> &body)
 {
 	try
 	{
 		body();
 	}
-	catch (const love::Exception &e)
+	catch (const std::exception &e)
 	{
 		raise(machine, e.what());
+	}
+	catch (...)
+	{
+		raise(machine, "an unknown C++ exception");
 	}
 }
 
@@ -1047,6 +1057,16 @@ void catchexcept(LhatMachine *machine, const LhatErrorKind *kind,
 		// Whatever the body had written is replaced: an error is one answer.
 		answers[0] = fail(machine, kind, e.what());
 		*answerCount = 1;
+	}
+	// The error value is for the failures the signature declares. Anything
+	// else is the engine's fault, not the call's outcome: a panic, as in guard.
+	catch (const std::exception &e)
+	{
+		raise(machine, e.what());
+	}
+	catch (...)
+	{
+		raise(machine, "an unknown C++ exception");
 	}
 }
 
