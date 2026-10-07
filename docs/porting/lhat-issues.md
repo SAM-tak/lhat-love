@@ -13,6 +13,13 @@ lhatove の移植中に見つかった、lhat 本体で直すべき事項。解�
 
 ## 解決済み
 
+- **弱参照キャッシュが削除済みキーによって拡大し続ける**（2026-10-06、未コミット）
+  → lhat `src/vm_machine.c` の再ハッシュで、実際の登録件数に空きがあれば容量を維持するよう修正。
+  従来は削除済み枠で占有率が上がった場合にも常に倍増していた。
+  LÖVEをリンクしないCの再現で、登録→即削除を10万回行うと生存0件でも表が1,572,864 bytesへ増大。
+  修正後は384 bytesで一定。`test_hostdata_base` に削除反復と実際に64件保持した場合の拡大・参照保持を追加。
+  Vanguard Princess `tests/repro-weak-cache.c` と `TechnicalDocuments/0064-memory-heap-audit.md` を参照。
+
 - **複数 task ワーカーによるメンバー誤読・二重解放**（2026-10-04）
   → lhat `56cf7cf fix: transfer task results once and isolate member caches per VM`。
   共有 chunk 上のメンバーキャッシュを VM ごとに分離。
