@@ -66,6 +66,7 @@ static void print_usage()
 		"    lovec --compile-game DIR GAME  compiles a whole game and copies its configuration and assets\n"
 		"    love --no-error-screen GAME    reports errors to stderr and exits instead of waiting on an error screen\n"
 		"    --debug-names                  keeps local and captured names in compiled units\n"
+		"    --jobs N                       LTON compiler threads for --compile-game (0: physical cores on Windows, 1: serial)\n"
 		"    love path/to/gamedir            runs the game from the given directory which contains a main.lh file\n"
 		"    love path/to/packagedgame.love  runs the packaged game from the provided .love file\n"
 		"    love path/to/file.lh            runs the game from the given .lh file\n"

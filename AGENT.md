@@ -61,11 +61,14 @@ L^ ランタイムの場所は CMake オプション `LHATOVE_LHAT_DIR`（デフ
 
 ```powershell
 .\build\love\Release\lovec.exe --compile-game out\mygame game\    # ユニット→バイト列、conf.lton も、他のファイルはそのまま複製
+.\build\love\Release\lovec.exe --compile-game out\mygame --jobs 6 game\ # LTONのみ6スレッド。1で直列、既定0はWindowsの物理コア数
 .\build\love\Release\lovec.exe --compile -o out\modules game\fighter.lh # ソースと require^ 先のみ。通常のライブラリも可、実行しない
 .\build-vmonly\love\Release\lovec.exe out\mygame                  # 走る
 ```
 
 `--debug-names` を添えるとローカル名と捕捉名（09 の 4 章）が残る。行番号は**どちらでも残る**ので traceback は常に読める。既定は落とす。
+
+`--compile-game` は `.lh` の依存グラフを直列で処理した後、LTONを独立したRuntime・Loaderを持つスレッドへ割り当てる。`--jobs N` は0〜256（Windows以外・物理コア検出失敗時の自動値は1）。型登録とprogram生成はスレッド起動前に行い、Runtimeの書込ロックはprogramごと。lhatの `lhat_program_new` は共有CastFailureを先に初期化するため、その変更も必要。子プロセスは起動しない。回帰テストは `python testing/test_parallel_lton.py`。
 
 **エンジン側の生成物を作り直すのは、登録か埋め込みユニットを変えた時と、lhat の `LHAT_VERSION` が変わった時**（3 つとも git に入っている）。`scripts/regen-generated.ps1`（`-Lovec` に full 版の lovec、`-Out` に出力先）が下の 5 コマンドを 1 本にしてある:
 

@@ -238,6 +238,7 @@ public:
 private:
 
 	LhatProgram *program_;
+	std::mutex programMutex_;
 	LhatMachine *machine_;
 	StrongRef<ParkingLot> lot_;
 	std::string failedRegistrar_;

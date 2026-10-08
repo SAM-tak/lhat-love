@@ -359,22 +359,14 @@ bool Context::objectType(const char *module, const char *name, love::Type &type,
 // in the constructor), which reaches the writes inside lhat as well -- the
 // install a std.thread worker makes for itself, above all. It must not be
 // taken here as well: lhat says the pair never nests, and this one does not.
-static std::mutex &programMutex()
-{
-	static std::mutex mutex;
-	return mutex;
-}
-
 static void lockProgram(void *context)
 {
-	(void) context;
-	programMutex().lock();
+	static_cast<std::mutex *>(context)->lock();
 }
 
 static void unlockProgram(void *context)
 {
-	(void) context;
-	programMutex().unlock();
+	static_cast<std::mutex *>(context)->unlock();
 }
 
 Runtime::Runtime(LhatProgramLoader loader, void *loaderContext)
@@ -383,7 +375,7 @@ Runtime::Runtime(LhatProgramLoader loader, void *loaderContext)
 {
 	// 03 の 3.1: a file defaults to strict.
 	program_ = lhat_program_new(true, loader, loaderContext);
-	lhat_program_set_lock(program_, lockProgram, unlockProgram, nullptr);
+	lhat_program_set_lock(program_, lockProgram, unlockProgram, &programMutex_);
 	lot_.set(new ParkingLot(), Acquire::NORETAIN);
 }
 

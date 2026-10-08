@@ -87,6 +87,10 @@
 #include <cstdint>
 #ifdef LOVE_WINDOWS
 #include <direct.h>
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
 #else
 #include <sys/stat.h>
 #endif
@@ -94,6 +98,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <algorithm>
+#include <atomic>
+#include <memory>
+#include <thread>
 #include <set>
 #include <string>
 #include <vector>
@@ -636,8 +644,9 @@ static std::string compileLton(Runtime &runtime, const std::string &to,
 // shader sources. The program never saw them, so the walk above cannot,
 // and a directory holding only compiled units is not a game. Copies them
 // with the paths they had, compiling LTON data for builds without a front end.
-static std::string copyRest(Runtime &runtime, const std::string &to, const std::string &dir,
-                            const std::set<std::string> &written, bool debugNames, size_t &copied)
+static std::string copyRest(const std::string &to, const std::string &dir,
+                            const std::set<std::string> &written, size_t &copied,
+                            std::vector<std::pair<std::string, int64_t>> &lton)
 {
 	auto fs = Module::getInstance<love::filesystem::Filesystem>(Module::M_FILESYSTEM);
 	std::vector<std::string> items;
@@ -651,7 +660,7 @@ static std::string copyRest(Runtime &runtime, const std::string &to, const std::
 		if (info.type == love::filesystem::Filesystem::FILETYPE_DIRECTORY)
 		{
 			makeParents(to, path + "/x");
-			std::string trouble = copyRest(runtime, to, path, written, debugNames, copied);
+			std::string trouble = copyRest(to, path, written, copied, lton);
 			if (!trouble.empty())
 				return trouble;
 			continue;
@@ -660,9 +669,7 @@ static std::string copyRest(Runtime &runtime, const std::string &to, const std::
 			continue;
 		if (endsWith(path, ".lton"))
 		{
-			std::string trouble = compileLton(runtime, to, path, debugNames);
-			if (!trouble.empty())
-				return trouble;
+			lton.emplace_back(path, info.size);
 			copied++;
 			continue;
 		}
@@ -675,10 +682,114 @@ static std::string copyRest(Runtime &runtime, const std::string &to, const std::
 	return std::string();
 }
 
+static unsigned physicalCores()
+{
+#ifdef LOVE_WINDOWS
+	DWORD bytes = 0;
+	GetLogicalProcessorInformationEx(RelationProcessorCore, nullptr, &bytes);
+	if (bytes != 0)
+	{
+		std::vector<unsigned char> buffer(bytes);
+		auto info = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(buffer.data());
+		if (GetLogicalProcessorInformationEx(RelationProcessorCore, info, &bytes))
+		{
+			unsigned cores = 0;
+			for (size_t at = 0; at < bytes; )
+			{
+				info = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(buffer.data() + at);
+				if (info->Size == 0 || info->Size > bytes - at)
+					return 1;
+				if (info->Relationship == RelationProcessorCore)
+					cores++;
+				at += info->Size;
+			}
+			return std::max(1u, std::min(cores, 256u));
+		}
+	}
+#endif
+	// Unknown topology: callers can still select a count explicitly.
+	return 1;
+}
+
+static std::string compileLtons(Runtime &runtime, const Loader &loader, const std::string &to,
+                               bool debugNames, unsigned jobs,
+                               std::vector<std::pair<std::string, int64_t>> &files)
+{
+	if (files.empty())
+		return {};
+	jobs = (unsigned) std::min<size_t>(jobs == 0 ? physicalCores() : jobs, files.size());
+	// Large files first, with a shared queue so small tasks fill any remaining gaps.
+	std::stable_sort(files.begin(), files.end(), [](const auto &a, const auto &b) { return a.second > b.second; });
+	printf("compiling %zu LTON files with %u threads\n", files.size(), jobs);
+	fflush(stdout);
+	if (jobs == 1)
+	{
+		for (const auto &file : files)
+		{
+			std::string trouble = compileLton(runtime, to, file.first, debugNames);
+			if (!trouble.empty())
+				return trouble;
+		}
+		return {};
+	}
+
+	struct Worker
+	{
+		Loader loader;
+		Runtime runtime;
+		Worker(const Loader &source) : loader(source), runtime(Loader::load, &loader) {}
+	};
+	std::vector<std::unique_ptr<Worker>> workers;
+	// Registration writes process-wide identities: finish it before starting
+	// threads. Programs, type arenas, diagnostics and loader caches are private.
+	for (unsigned i = 0; i < jobs; i++)
+	{
+		auto worker = std::make_unique<Worker>(loader);
+		if (worker->runtime.program() == nullptr
+		    || !worker->runtime.registerAll(registrars, sizeof(registrars) / sizeof(registrars[0]))
+		    || !registerStdlib(worker->runtime.program()))
+			return "Could not initialize an LTON compiler worker.";
+		workers.push_back(std::move(worker));
+	}
+	std::atomic<size_t> next{0};
+	std::atomic<bool> failed{false};
+	std::vector<std::string> errors(files.size());
+	struct Threads
+	{
+		std::vector<std::thread> values;
+		~Threads() { for (auto &thread : values) if (thread.joinable()) thread.join(); }
+	};
+	try
+	{
+		// Join even if thread creation fails; workers must outlive their threads.
+		Threads threads;
+		threads.values.reserve(jobs);
+		for (unsigned i = 0; i < jobs; i++)
+			threads.values.emplace_back([&, i] {
+				while (!failed.load())
+				{
+					size_t at = next.fetch_add(1);
+					if (at >= files.size()) break;
+					try
+					{
+						errors[at] = compileLton(workers[i]->runtime, to, files[at].first, debugNames);
+					}
+					catch (const std::exception &e) { errors[at] = files[at].first + ": " + e.what(); }
+					catch (...) { errors[at] = files[at].first + ": LTON compiler worker failed."; }
+					if (!errors[at].empty()) failed.store(true);
+				}
+			});
+	}
+	catch (const std::exception &e) { return std::string("Could not start LTON compiler threads: ") + e.what(); }
+	for (const auto &error : errors)
+		if (!error.empty()) return error;
+	return {};
+}
+
 // Source compilation writes only the reached units. Game compilation also
 // checks the remaining units and copies configuration and assets.
 static std::string compileOutput(Runtime &runtime, Loader &loader, const std::string &to,
-                                 bool debugNames, bool wholeGame)
+                                 bool debugNames, bool wholeGame, unsigned jobs)
 {
 	if (wholeGame)
 	{
@@ -722,7 +833,11 @@ static std::string compileOutput(Runtime &runtime, Loader &loader, const std::st
 	}
 
 	size_t copied = 0;
-	std::string trouble = copyRest(runtime, to, "", written, debugNames, copied);
+	std::vector<std::pair<std::string, int64_t>> lton;
+	std::string trouble = copyRest(to, "", written, copied, lton);
+	if (!trouble.empty())
+		return trouble;
+	trouble = compileLtons(runtime, loader, to, debugNames, jobs, lton);
 	if (!trouble.empty())
 		return trouble;
 
@@ -1119,6 +1234,8 @@ struct Arguments
 	std::string unknown;
 	std::string embedTo;        // --dump-embedded DIR
 	bool debugNames = false;    // --debug-names, with either of those
+	unsigned jobs = 0;          // --jobs: 0 selects physical cores on Windows
+	bool jobsSpecified = false;
 };
 
 static Arguments parseArguments(int argc, char **argv)
@@ -1138,6 +1255,23 @@ static Arguments parseArguments(int argc, char **argv)
 			args.dumpHostApi = true;
 			if (i + 1 < argc && argv[i + 1][0] != '-')
 				args.dumpPath = argv[++i];
+		}
+		else if (a == "--jobs")
+		{
+			if (i + 1 >= argc)
+			{
+				args.error = "--jobs needs an integer from 0 to 256.";
+				return args;
+			}
+			std::string value = argv[++i];
+			if (value.empty() || value.size() > 3 || value.find_first_not_of("0123456789") != std::string::npos
+			    || strtoul(value.c_str(), nullptr, 10) > 256)
+			{
+				args.error = "--jobs needs an integer from 0 to 256.";
+				return args;
+			}
+			args.jobs = (unsigned) strtoul(value.c_str(), nullptr, 10);
+			args.jobsSpecified = true;
 		}
 		else if (a == "--debug-names")
 		{
@@ -1198,7 +1332,9 @@ static Arguments parseArguments(int argc, char **argv)
 	}
 	if (!args.error.empty())
 		return args;
-	if (args.compileRequested && args.compileTo.empty())
+	if (args.jobsSpecified && (!args.compileRequested || args.sourceCompile))
+		args.error = "--jobs requires --compile-game.";
+	else if (args.compileRequested && args.compileTo.empty())
 		args.error = "--compile needs -o DIR. Usage: lovec --compile -o DIR SOURCE.lh/.lton";
 	else if (!args.compileRequested && !args.compileTo.empty())
 		args.error = "-o / --output requires --compile.";
@@ -1502,7 +1638,7 @@ static int boot(int argc, char **argv, bool console)
 
 	if (!args.compileTo.empty())
 	{
-		std::string trouble = compileOutput(runtime, loader, args.compileTo, args.debugNames, !args.sourceCompile);
+		std::string trouble = compileOutput(runtime, loader, args.compileTo, args.debugNames, !args.sourceCompile, args.jobs);
 		if (!trouble.empty())
 		{
 			report("lhatove", trouble);

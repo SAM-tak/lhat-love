@@ -173,6 +173,11 @@ copy /b build-vmonly-shipping\love\Release\love.exe+mygame.love mygame.exe
 `std.lton` の writer を通してバイナリ化する。VM 版でも `std.lton.load` で読める。
 画像・フォント・音はそのまま複製されるので、出力ディレクトリがそのまま `.love` になる。
 
+LTONのコンパイルは `--jobs N` でスレッド数を指定できる（0〜256）。既定の0はWindowsでは
+物理コア数、検出できない環境では1。`--jobs 1` で直列に戻せる。`.lh` の依存グラフは直列のまま。
+ワーカーは独立したprogram・Loaderを持ち、型登録と共有エラー型の初期化はスレッド起動前に済ませる。
+子プロセスは使用しない。`--jobs` は `--compile-game` 専用で、`--compile` との併用は拒否する。
+
 - **利得は起動**。登録署名 800 本の解析（4.2ms）が表引き（0.0ms）になり、ゲームの
   check / compile が消える。`lhat.lib` は半分以下だが `love.dll` は 196KB しか縮まない
   （署名表を埋め込むため）
