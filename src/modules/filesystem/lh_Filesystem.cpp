@@ -199,6 +199,45 @@ static void lh_remove(LhatMachine *machine, void *context, const LhatValue *argu
 	*answerCount = 1;
 }
 
+// Paths refer to archives/directories in the virtual filesystem. FileData
+// mounts use its filename unless an explicit archive name is supplied.
+static void lh_mount(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
+					 LhatValue *answers, int *answerCount)
+{
+	const FilesystemBinding *b = (const FilesystemBinding *) context;
+	lh::guard(machine, [&]() {
+		FileData *data = count > 0 ? lh::checkObject<FileData>(arguments[0], *b->registry) : nullptr;
+		bool success;
+		if (data != nullptr)
+		{
+			bool named = count > 2 && lh::stringOf(arguments[2]) != nullptr;
+			std::string name = named ? lh::optString(arguments, count, 1, "") : data->getFilename();
+			std::string mountpoint = lh::optString(arguments, count, named ? 2 : 1, "");
+			success = instance()->mount(data, name.c_str(), mountpoint.c_str(), lh::optBool(arguments, count, named ? 3 : 2, false));
+		}
+		else
+		{
+			std::string path = lh::optString(arguments, count, 0, "");
+			std::string mountpoint = lh::optString(arguments, count, 1, "");
+			success = instance()->mount(path.c_str(), mountpoint.c_str(), lh::optBool(arguments, count, 2, false));
+		}
+		answers[0] = lhat_bool(success);
+		*answerCount = 1;
+	});
+}
+
+static void lh_unmount(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
+					   LhatValue *answers, int *answerCount)
+{
+	const FilesystemBinding *b = (const FilesystemBinding *) context;
+	lh::guard(machine, [&]() {
+		FileData *data = count > 0 ? lh::checkObject<FileData>(arguments[0], *b->registry) : nullptr;
+		answers[0] = lhat_bool(data != nullptr ? instance()->unmount(data)
+			: instance()->unmount(lh::optString(arguments, count, 0, "").c_str()));
+		*answerCount = 1;
+	});
+}
+
 static void lh_getSaveDirectory(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
 								LhatValue *answers, int *answerCount)
 {
@@ -632,6 +671,14 @@ bool lhopen_love_filesystem(Context &ctx)
 		&& ctx.func(m, "getDirectoryItems", "f^string^ -> t^{string^[]};", lh_getDirectoryItems, b)
 		&& ctx.func(m, "createDirectory", "p^string^ -> bool^;", lh_createDirectory, b)
 		&& ctx.func(m, "remove", "p^string^ -> bool^;", lh_remove, b)
+		&& ctx.func(m, "mount", "p^string^, string^ -> bool^;", lh_mount, b)
+		&& ctx.func(m, "mount", "p^string^, string^, bool^ -> bool^;", lh_mount, b)
+		&& ctx.func(m, "mount", "p^love.filesystem.FileData, string^ -> bool^;", lh_mount, b)
+		&& ctx.func(m, "mount", "p^love.filesystem.FileData, string^, bool^ -> bool^;", lh_mount, b)
+		&& ctx.func(m, "mount", "p^love.filesystem.FileData, string^, string^ -> bool^;", lh_mount, b)
+		&& ctx.func(m, "mount", "p^love.filesystem.FileData, string^, string^, bool^ -> bool^;", lh_mount, b)
+		&& ctx.func(m, "unmount", "p^string^ -> bool^;", lh_unmount, b)
+		&& ctx.func(m, "unmount", "p^love.filesystem.FileData -> bool^;", lh_unmount, b)
 		&& ctx.func(m, "getSaveDirectory", "f^ -> string^;", lh_getSaveDirectory, b)
 		&& ctx.func(m, "getIdentity", "f^ -> string^;", lh_getIdentity, b)
 		&& ctx.func(m, "setIdentity", "p^string^ -> bool^;", lh_setIdentity, b)

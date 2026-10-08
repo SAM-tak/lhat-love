@@ -1,5 +1,5 @@
 # love.filesystem -- the L^port of testing/tests/filesystem.lua, for the
-# save-directory half (mount / lines / enumerate wait for their bindings).
+# save-directory and mount APIs (lines still waits for its binding).
 # Every failable call answers an error value, so each one is written with
 # catch^the way a game would write it.
 module^suite.tests.filesystem
@@ -63,6 +63,44 @@ public^let^run = p^{
     test.text("the module's declaration catches it", "(by declaration)", byGroup)
     let^byLeaf = love.filesystem.read("no-such-file.txt") catch^ if^ it^ fits^ love.filesystem.Error.IO: "(by leaf)" el^: "(other)";
     test.text("and so does the variant", "(by leaf)", byLeaf)
+
+    # Mount a save-directory ZIP, and check search order against a loose file.
+    let^zip = love.filesystem.read("assets/mount.zip") catch^""
+    love.filesystem.write("suite-mount.zip", zip) catch^nil^
+    love.filesystem.write("mount-value.txt", "loose") catch^nil^
+    test.isTrue("mount ZIP at root", love.filesystem.mount("suite-mount.zip", ""))
+    test.text("mount prepends by default", "archive", love.filesystem.read("mount-value.txt") catch^"(failed)")
+    test.isFalse("duplicate mount fails", love.filesystem.mount("suite-mount.zip", "mounted"))
+    test.isTrue("unmount ZIP by path", love.filesystem.unmount("suite-mount.zip"))
+    test.text("unmount restores search order", "loose", love.filesystem.read("mount-value.txt") catch^"(failed)")
+    test.isTrue("mount ZIP appended", love.filesystem.mount("suite-mount.zip", "", true^))
+    test.text("append preserves earlier files", "loose", love.filesystem.read("mount-value.txt") catch^"(failed)")
+    test.isTrue("unmount appended ZIP", love.filesystem.unmount("suite-mount.zip"))
+    test.isFalse("unmount twice fails", love.filesystem.unmount("suite-mount.zip"))
+    test.isFalse("mount missing archive fails", love.filesystem.mount("missing-mount.zip", "mounted"))
+    test.isFalse("mount invalid archive fails", love.filesystem.mount("suite.txt", "mounted"))
+
+    test.isTrue("mount directory", love.filesystem.mount("suitedir", "mounted", false^))
+    test.text("read mounted directory", "inner", love.filesystem.read("mounted/inner.txt") catch^"(failed)")
+    test.isTrue("unmount directory", love.filesystem.unmount("suitedir"))
+    test.isFalse("unmounted files disappear", love.filesystem.exists("mounted/inner.txt"))
+
+    # Memory archives accept a FileData filename or an explicit archive name.
+    let^archive = love.filesystem.newFileData(zip, "memory-mount.zip")
+    test.isTrue("mount FileData", love.filesystem.mount(archive, "memory"))
+    test.text("read memory archive", "archive", love.filesystem.read("memory/mount-value.txt") catch^"(failed)")
+    test.isTrue("unmount FileData by name", love.filesystem.unmount("memory-mount.zip"))
+    test.isTrue("mount FileData appended", love.filesystem.mount(archive, "memory", true^))
+    test.isTrue("unmount FileData by object", love.filesystem.unmount(archive))
+    test.isFalse("unmounted memory files disappear", love.filesystem.exists("memory/mount-value.txt"))
+    test.isFalse("unmount unmounted FileData fails", love.filesystem.unmount(archive))
+    test.isTrue("mount explicitly named FileData", love.filesystem.mount(archive, "named-mount.zip", "memory"))
+    test.isTrue("unmount explicit name", love.filesystem.unmount("named-mount.zip"))
+    test.isTrue("mount explicitly named FileData appended", love.filesystem.mount(archive, "named-mount.zip", "memory", true^))
+    test.isTrue("unmount named FileData by object", love.filesystem.unmount(archive))
+    test.isFalse("mount invalid FileData fails", love.filesystem.mount(love.filesystem.newFileData("not a ZIP", "invalid.zip"), "memory"))
+    test.isTrue("remove archive fixture", love.filesystem.remove("suite-mount.zip"))
+    test.isTrue("remove loose mount file", love.filesystem.remove("mount-value.txt"))
 
     # tidy up
     test.isTrue("remove a file", love.filesystem.remove("suitedir/inner.txt"))

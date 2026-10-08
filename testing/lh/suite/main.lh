@@ -4,7 +4,7 @@
 # 1 when something did not, so a build can read the exit code.
 #
 # Every module the L^bindings cover has its tests here; what upstream
-# tests of an unbound API (Buffers, compute shaders, ByteData, mounts) is
+# tests of an unbound API (Buffers, compute shaders, ByteData) is
 # left for when those are bound.
 module^suite
 
