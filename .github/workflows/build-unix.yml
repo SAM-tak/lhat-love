@@ -91,6 +91,8 @@ jobs:
           PACKAGE_PLATFORM: ${{ matrix.platform }}
         run: |
           if [[ "$RUNNER_OS" == Linux ]]; then
+            # SDL ignores the runner's C locale. The suite expects a preferred language.
+            export LANGUAGE=en_US
             xvfb-run -a bash lhat-love/scripts/build-unix.sh
           else
             bash lhat-love/scripts/build-unix.sh

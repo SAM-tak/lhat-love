@@ -14,7 +14,9 @@ def main():
     compiler, vm = args.lovec.resolve(), args.vm.resolve()
 
     def run(*arguments, expected=0, exe=compiler):
-        result = subprocess.run([str(exe), *map(str, arguments)], capture_output=True,
+        # Unix uses the GUI executable too; invalid CLI arguments must not
+        # open a modal error dialog while the test waits for an exit code.
+        result = subprocess.run([str(exe), '--no-error-screen', *map(str, arguments)], capture_output=True,
                                 encoding='utf-8', errors='replace', timeout=40)
         assert result.returncode == expected, (arguments, result.returncode, result.stdout, result.stderr)
         return result
@@ -64,7 +66,7 @@ public^let^run = p^{
                 result = run('--compile-game', output, '--jobs', 6, *options, input_path)
                 assert '25 LTON files with 6 threads' in result.stdout
                 assert contents(output) == contents(baseline)
-            run('--no-error-screen', output, exe=vm, expected=17)
+            run(output, exe=vm, expected=17)
 
         for value in ('-1', '257', 'x', '1.5', '999999999999999999999'):
             result = run('--compile-game', root / 'invalid', '--jobs', value, source, expected=1)
