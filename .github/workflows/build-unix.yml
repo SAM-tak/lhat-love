@@ -70,7 +70,7 @@ jobs:
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
         run: |
-          brew install ninja pkg-config freetype harfbuzz openal-soft libmodplug libtheora libvorbis libogg dylibbundler
+          brew install ninja pkgconf freetype harfbuzz openal-soft libmodplug theora libvorbis libogg dylibbundler
           echo "CMAKE_PREFIX_PATH=$(brew --prefix);$(brew --prefix openal-soft)" >> "$GITHUB_ENV"
 
       - name: Build SDL
