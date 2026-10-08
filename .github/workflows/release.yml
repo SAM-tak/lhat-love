@@ -7,8 +7,8 @@
 #   vmonly-shipping   the runtime a compiled game ships on: no front end, no
 #                     debugger.
 #
-# Only what passed goes out: build.yml runs the test suite on both, and the
-# publish job does not start unless it did.
+# Only what passed goes out: both build workflows run the test suite on
+# both variants, and publishing requires every platform to succeed.
 name: release
 
 on:
@@ -25,8 +25,11 @@ jobs:
   build:
     uses: ./.github/workflows/build.yml
 
+  build-unix:
+    uses: ./.github/workflows/build-unix.yml
+
   publish:
-    needs: build
+    needs: [build, build-unix]
     # A tag is what makes this a release; workflow_dispatch only proves the
     # build still works.
     if: startsWith(github.ref, 'refs/tags/v')
@@ -38,12 +41,14 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          name: package
+          pattern: package-*
+          merge-multiple: true
           path: dist
 
       - uses: actions/download-artifact@v8
         with:
-          name: build-info
+          pattern: build-info-*
+          merge-multiple: true
           path: info
 
       # The archives are named for what they are; the release they are
@@ -51,7 +56,7 @@ jobs:
       - name: Name the archives for the tag
         run: |
           cd dist
-          for f in lhat-love-*.zip; do
+          for f in lhat-love-*; do
             mv "$f" "lhat-love-${GITHUB_REF_NAME}-${f#lhat-love-}"
           done
           ls -l
@@ -70,7 +75,7 @@ jobs:
             esac
             echo
             echo '```'
-            cat info/build-info.txt
+            cat info/*.txt
             echo '```'
           } > notes.md
           prerelease=

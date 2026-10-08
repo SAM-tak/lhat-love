@@ -3,3 +3,4 @@
 *.c diff=cpp
 *.cpp diff=cpp
 *.h diff=cpp
+*.sh text eol=lf

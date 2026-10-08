@@ -9,7 +9,7 @@ LÔVE（lhatove）は [love2d/love](https://github.com/love2d/love) 12.0 のフ�
 
 - エンジン本体: C++17 / CMake
 - L^ ランタイム: C11 静的ライブラリ（`../lhat` を `add_subdirectory` で取込）
-- 当面 Windows（megasource + MSVC）ビルドのみ対象
+- Windows（megasource）、Linux / macOS（CMake）のリリースジョブを持つ
 
 まだ実用に供されていないので、**後方互換性を保つ必要はない**。upstream love2d との互換も目標ではない。
 
@@ -88,7 +88,12 @@ L^ ランタイムの場所は CMake オプション `LHATOVE_LHAT_DIR`（デフ
 
 ### CI とリリース（GitHub Actions）
 
-Windows のみ。公開リポジトリなので標準ランナーは無料。`.github/workflows/` の `ci.yml`（main への push と PR）と `release.yml`（`v*` タグ。手動起動はビルドと検証だけで公開しない）が `build.yml` を呼ぶ。
+`.github/workflows/` の `ci.yml`（main への push と PR）は Windows の `build.yml` を呼ぶ。`release.yml`（`v*` タグ。手動起動はビルドと検証だけで公開しない）はそれに加えて `build-unix.yml` を呼び、全ジョブの成功後に公開する。
+
+- `build-unix.yml` は Linux x64（ubuntu-24.04）、macOS arm64（macos-15）、macOS x64（macos-15-intel）を並列で組む。各ジョブ内では full → VM-only の順。単独で手動実行も可能
+- `scripts/build-unix.sh` は配布形にした両構成で suite を実行し、full で生成ヘッダのバイト列一致、VM-only 完成後に並列 LTON 回帰テストも検証する。Unix の CLI は `love`
+- `scripts/package-unix.py` は Linux の非システム共有ライブラリを同梱して相対 RPATH を設定する。glibc と GL / ドライバ層はホスト側。macOS は依存 dylib を `.app` にまとめ、ad-hoc 署名する（Developer ID 署名・公証はしない）。最低環境は Ubuntu 24.04 相当 / macOS 15
+- Unix は `lhat.rev` と workflow 内の固定 SDL コミットを使う。他の依存は apt / Homebrew から取得し、版を `dependencies.txt` に記録するため、その部分はコミット固定ではない。成果物は `lhat-love-<タグ>-linux-x64-<構成>.tar.gz` / `-macos-arm64-` / `-macos-x64-`
 
 - `build.yml` は 1 ジョブで直列。**RelWithDebInfo（full）** をビルド → `scripts/package.ps1` で配布形にして、そのパッケージで suite を走らせる → suite を `--compile-game` → 生成物を再生成（下記）→ **VmOnly-Shipping** をビルド → そのパッケージでコンパイル済み suite を走らせる。VM 版は full の成果物を要るので並列にできない
 - **lhat と megasource はコミットを固定する**: リポジトリ直下の `lhat.rev` / `megasource.rev`（40 桁のハッシュ 1 行ずつ）を CI が checkout する。だから同じコミットは常に同じ L^ と依存で組まれ、タグを打ち直しても同じ物になる（本家 LÖVE の CI は megasource の先端を取っていて、固定はしていない）。固定を動かすのは `scripts/pin.ps1 lhat` / `pin.ps1 megasource`（兄弟ディレクトリの HEAD を書く。作業ツリーが汚れている時と、HEAD が origin に無い時は断る）。lhat を動かしたら組み直して `regen-generated.ps1` を走らせ、`lhat.rev` と `src/lh` を**一緒に** commit する — CI は再生成した生成物がコミット済みと違えば**失敗する**（固定したのだから一致するはず）。手元のビルドは兄弟の作業ツリーをそのまま使い、`.rev` と違えば `build.ps1` が警告だけ出す（megasource を新しく clone する時は固定のコミットへ checkout する）。取ったコミットは各パッケージの `build-info.txt` に入る

@@ -10,7 +10,7 @@ LÔVE is a fork of [LÖVE](https://github.com/love2d/love) 12.0, a framework for
 - A game is `main.lh` (and optionally `conf.lton`), not `main.lua` / `conf.lua`. See [main-lh.md][mainlh].
 - `love.thread` is gone. Threads, channels and async come from L^'s standard library (`std.thread`, `std.channel`, `std.async`).
 - LuaJIT, lua53, luasocket, enet and luahttps are gone, so there are no networking modules.
-- Windows is the only platform for now.
+- Release jobs target Windows x64, Linux x64, and macOS arm64 / x64.
 
 ## Documentation
 
@@ -23,12 +23,16 @@ The design notes are in `docs/porting/`, in Japanese:
 
 ## Builds
 
-GitHub Actions builds every push and pull request, and attaches builds to each release. Files for releases are in the [releases][releases] section. A release carries two Windows builds:
+GitHub Actions builds Windows on every push and pull request. Releases also build Linux x64 and macOS arm64 / x64, and publish only after all platforms pass. Files are in the [releases][releases] section. Each platform carries two builds:
 
-- `relwithdebinfo` — the full engine, with the L^ front end and the debugger. Its symbols are in a separate archive. This is what games are developed, run and compiled with.
+- `relwithdebinfo` — the full engine, with the L^ front end and the debugger. Windows symbols are in a separate archive; Unix builds retain their debug information. This is what games are developed, run and compiled with.
 - `vmonly-shipping` — the runtime a compiled game ships on: no front end, no debugger. See [AGENT.md][agent] for how a game is compiled for it.
 
 The builds of a push are also kept for 14 days as artifacts of its [Actions run][workflows].
+
+Windows packages are `.zip` files; Linux and macOS packages are `.tar.gz` files. Linux packages target Ubuntu 24.04 or compatible newer systems: run `bin/love`, with the host providing glibc and graphics drivers. macOS packages require macOS 15 or newer and contain `lhat-love.app`; the command-line executable is `lhat-love.app/Contents/MacOS/love`. Non-system shared libraries are bundled. macOS apps are ad-hoc signed, without Developer ID signing or notarization.
+
+The `release` workflow can also be run manually to build and test without publishing. `build-unix` can be run separately to check just Linux and macOS. Unix jobs use `lhat.rev`, a pinned SDL source revision, and distribution/Homebrew packages whose installed versions are recorded in each archive's `dependencies.txt`.
 
 ## Running
 

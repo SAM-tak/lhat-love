@@ -33,8 +33,9 @@ set(CMAKE_CXX_STANDARD 17)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)	# Allow grouping projects in Visual Studio
 
 if(APPLE)
-	message(WARNING "CMake is not an officially supported build system for love on Apple platforms.")
-	message(WARNING "Use the prebuilt .app or the xcode project in platform/xcode/ instead.")
+	enable_language(OBJC OBJCXX)
+	set(CMAKE_OBJCXX_STANDARD 17)
+	add_compile_options("$<$<COMPILE_LANGUAGE:OBJC,OBJCXX>:-fobjc-arc>")
 endif()
 
 if(MINGW)

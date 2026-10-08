@@ -136,13 +136,13 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: package
+          name: package-win-x64
           path: lhat-love-win-x64-*.zip
           if-no-files-found: error
           retention-days: 14
 
       - uses: actions/upload-artifact@v7
         with:
-          name: build-info
+          name: build-info-win-x64
           path: build-info.txt
           retention-days: 14
