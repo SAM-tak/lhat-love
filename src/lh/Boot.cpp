@@ -92,6 +92,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#include "common/utf8.h"
 #else
 #include <sys/stat.h>
 #endif
@@ -552,6 +553,16 @@ static std::string describeLton(LhatMachine *machine, LhatProgram *program, Lhat
 // The embedded Boot.lh and nogame.lh are not written -- every build carries
 // its own, and they are held rather than read from the game.
 
+// Engine paths are UTF-8, regardless of the Windows ANSI code page.
+static FILE *openFile(const std::string &path, const char *mode)
+{
+#ifdef LOVE_WINDOWS
+	return _wfopen(to_widestr(path).c_str(), to_widestr(mode).c_str());
+#else
+	return fopen(path.c_str(), mode);
+#endif
+}
+
 // Makes `path`'s parent directories under `root`. PhysFS spells a unit with
 // forward slashes whatever the platform, so a nested require^ needs them.
 static bool makeParents(const std::string &root, const std::string &unit)
@@ -564,7 +575,7 @@ static bool makeParents(const std::string &root, const std::string &unit)
 			return true;
 		std::string dir = root + "/" + unit.substr(0, slash);
 #ifdef LOVE_WINDOWS
-		_mkdir(dir.c_str());
+		_wmkdir(to_widestr(dir).c_str());
 #else
 		mkdir(dir.c_str(), 0777);
 #endif
@@ -574,7 +585,7 @@ static bool makeParents(const std::string &root, const std::string &unit)
 
 static bool writeBytes(const std::string &path, const void *bytes, size_t length)
 {
-	FILE *out = fopen(path.c_str(), "wb");
+	FILE *out = openFile(path, "wb");
 	if (out == nullptr)
 		return false;
 	bool ok = length == 0 || fwrite(bytes, 1, length, out) == length;
@@ -630,7 +641,7 @@ static std::string compileLton(Runtime &runtime, const std::string &to,
 	if (wrote != LHAT_LTON_OK)
 		return path + ": " + describeLton(runtime.machine(), runtime.program(), wrote);
 	std::error_code directoryError;
-	std::filesystem::create_directories(std::filesystem::path(to + "/" + path).parent_path(), directoryError);
+	std::filesystem::create_directories(std::filesystem::u8path(to + "/" + path).parent_path(), directoryError);
 	if (directoryError)
 	{
 		lhat_free(bytes);
@@ -808,7 +819,7 @@ static std::string compileOutput(Runtime &runtime, Loader &loader, const Extensi
 			return runtime.compileDiagnostics();
 	}
 	std::error_code directoryError;
-	std::filesystem::create_directories(to, directoryError);
+	std::filesystem::create_directories(std::filesystem::u8path(to), directoryError);
 	if (directoryError)
 		return "Could not create " + to + ": " + directoryError.message();
 
@@ -862,7 +873,7 @@ static std::string dumpEmbedded(Runtime &runtime, Loader &loader, const std::str
                                 bool debugNames)
 {
 #ifdef LOVE_WINDOWS
-	_mkdir(to.c_str());
+	_wmkdir(to_widestr(to).c_str());
 #else
 	mkdir(to.c_str(), 0777);
 #endif
@@ -973,7 +984,7 @@ static bool unitIsOnDisk(const std::string &mount, const std::string &unit)
 {
 	if (mount.empty())
 		return false;
-	FILE *probe = fopen((mount + "/" + unit).c_str(), "rb");
+	FILE *probe = openFile(mount + "/" + unit, "rb");
 	if (probe == nullptr)
 		return false;
 	fclose(probe);
@@ -1592,7 +1603,7 @@ static int boot(int argc, char **argv, bool console)
 			report("lhatove", "Could not build the signature table.");
 			return 1;
 		}
-		FILE *out = fopen(args.signaturesPath.c_str(), "wb");
+		FILE *out = openFile(args.signaturesPath, "wb");
 		if (out == nullptr)
 		{
 			lhat_free(bytes);
@@ -1613,7 +1624,7 @@ static int boot(int argc, char **argv, bool console)
 		size_t needed = lhat_program_dump_host_api(runtime.program(), nullptr, 0);
 		std::vector<char> json(needed + 1);
 		lhat_program_dump_host_api(runtime.program(), json.data(), json.size());
-		FILE *out = fopen(args.dumpPath.c_str(), "wb");
+		FILE *out = openFile(args.dumpPath, "wb");
 		if (out == nullptr)
 		{
 			report("lhatove", "Could not write " + args.dumpPath);

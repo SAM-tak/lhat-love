@@ -55,12 +55,12 @@ class Client:
 
 
 def check(lovec, root):
-    game = root / "Case Game"
-    nested = game / "src" / "scenes" / "game.lh"
+    game = root / "Case Game 日本語"
+    nested = game / "src" / "シーン" / "game.lh"
     nested.parent.mkdir(parents=True)
     nested.write_text("module^dapgame\npublic^let^answer = f^{\n    return^42\n}\n", encoding="utf-8")
     main = game / "main.lh"
-    main.write_text('module^dapmain\nlet^scene = require^"src/scenes/game.lh"\n'
+    main.write_text('module^dapmain\nlet^scene = require^"src/シーン/game.lh"\n'
                     'let^value = scene.answer()\n'
                     'public^let^run = p^{ _yield^ return^0 }\n', encoding="utf-8")
     (game / "conf.lton").write_text(

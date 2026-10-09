@@ -49,6 +49,7 @@ for variant in relwithdebinfo vmonly-shipping; do
   else
     "$engine" --no-error-screen "$workspace/suite-compiled"
     python3 "$repo/testing/test_parallel_lton.py" --lovec "$full" --vm "$engine"
+    python3 "$repo/testing/test_unicode_paths.py" --lovec "$full" --vm "$engine"
     python3 "$repo/testing/test_extensions.py" --lovec "$full" --vm "$engine" \
       --lhat "$workspace/lhat" --lhat-generated "$workspace/build-relwithdebinfo/lhat/include"
   fi
