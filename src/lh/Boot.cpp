@@ -23,6 +23,7 @@
 #include "ErrorScreen.h"
 #include "Watchdog.h"
 #include "PhysfsLoader.h"
+#include "Extensions.h"
 #include "lh.h"
 
 #include "common/Module.h"
@@ -667,6 +668,10 @@ static std::string copyRest(const std::string &to, const std::string &dir,
 		}
 		if (written.count(path) != 0)
 			continue;
+		// Do not turn a save-directory file into a trusted native-code list
+		// when packaging a game that has no manifest of its own.
+		if (path == "extensions.txt" && fs->getRealDirectory(path.c_str()) != std::string(fs->getSource()))
+			continue;
 		if (endsWith(path, ".lton"))
 		{
 			lton.emplace_back(path, info.size);
@@ -711,7 +716,7 @@ static unsigned physicalCores()
 	return 1;
 }
 
-static std::string compileLtons(Runtime &runtime, const Loader &loader, const std::string &to,
+static std::string compileLtons(Runtime &runtime, const Loader &loader, const Extensions &extensions, const std::string &to,
                                bool debugNames, unsigned jobs,
                                std::vector<std::pair<std::string, int64_t>> &files)
 {
@@ -749,6 +754,9 @@ static std::string compileLtons(Runtime &runtime, const Loader &loader, const st
 		    || !worker->runtime.registerAll(registrars, sizeof(registrars) / sizeof(registrars[0]))
 		    || !registerStdlib(worker->runtime.program()))
 			return "Could not initialize an LTON compiler worker.";
+		std::string extensionError = extensions.install(worker->runtime.program());
+		if (!extensionError.empty())
+			return extensionError;
 		workers.push_back(std::move(worker));
 	}
 	std::atomic<size_t> next{0};
@@ -788,7 +796,7 @@ static std::string compileLtons(Runtime &runtime, const Loader &loader, const st
 
 // Source compilation writes only the reached units. Game compilation also
 // checks the remaining units and copies configuration and assets.
-static std::string compileOutput(Runtime &runtime, Loader &loader, const std::string &to,
+static std::string compileOutput(Runtime &runtime, Loader &loader, const Extensions &extensions, const std::string &to,
                                  bool debugNames, bool wholeGame, unsigned jobs)
 {
 	if (wholeGame)
@@ -837,7 +845,7 @@ static std::string compileOutput(Runtime &runtime, Loader &loader, const std::st
 	std::string trouble = copyRest(to, "", written, copied, lton);
 	if (!trouble.empty())
 		return trouble;
-	trouble = compileLtons(runtime, loader, to, debugNames, jobs, lton);
+	trouble = compileLtons(runtime, loader, extensions, to, debugNames, jobs, lton);
 	if (!trouble.empty())
 		return trouble;
 
@@ -1485,6 +1493,18 @@ static int boot(int argc, char **argv, bool console)
 	{
 		// Not on disk (or nothing mounted): the fallbacks above stand.
 	}
+	// Only the game source is mounted here. In particular, a save-directory
+	// manifest must never add native code to a game which did not request it.
+	Extensions extensions;
+	if (canHasGame)
+	{
+		std::string error = extensions.readManifest(fs);
+		if (!error.empty())
+		{
+			report("lhatove: extensions", error);
+			return 1;
+		}
+	}
 	identity = identityOf(identity);
 	fs->setIdentity(identity.c_str(), true);
 
@@ -1523,6 +1543,13 @@ static int boot(int argc, char **argv, bool console)
 	if (!registerStdlib(runtime.program()))
 	{
 		report("lhatove", "The L^ standard library refused to register.");
+		return 1;
+	}
+
+	std::string extensionError = extensions.install(runtime.program());
+	if (!extensionError.empty())
+	{
+		report("lhatove: extensions", extensionError);
 		return 1;
 	}
 
@@ -1638,7 +1665,7 @@ static int boot(int argc, char **argv, bool console)
 
 	if (!args.compileTo.empty())
 	{
-		std::string trouble = compileOutput(runtime, loader, args.compileTo, args.debugNames, !args.sourceCompile, args.jobs);
+		std::string trouble = compileOutput(runtime, loader, extensions, args.compileTo, args.debugNames, !args.sourceCompile, args.jobs);
 		if (!trouble.empty())
 		{
 			report("lhatove", trouble);
@@ -1886,4 +1913,5 @@ void love_lh_shutdown(void)
 	// Only the process-wide registry is left to give back: a Runtime is a
 	// stack object inside boot(), so every program is gone by now.
 	lhat_registry_dispose();
+	love::lh::Extensions::shutdown();
 }

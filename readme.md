@@ -10,6 +10,7 @@ LÔVE is a fork of [LÖVE](https://github.com/love2d/love) 12.0, a framework for
 - A game is `main.lh` (and optionally `conf.lton`), not `main.lua` / `conf.lua`. See [main-lh.md][mainlh].
 - `love.thread` is gone. Threads, channels and async come from L^'s standard library (`std.thread`, `std.channel`, `std.async`).
 - LuaJIT, lua53, luasocket, enet and luahttps are gone, so there are no networking modules.
+- Desktop games can register native L^ bindings from shared libraries listed in their own `extensions.txt`. See [native extensions](docs/porting/native-extensions.md).
 - Release jobs target Windows x64, Linux x64, and macOS arm64 / x64.
 
 ## Documentation

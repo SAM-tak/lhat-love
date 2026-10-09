@@ -112,6 +112,12 @@ jobs:
         timeout-minutes: 10
         run: dist\vmonly-shipping\lovec.exe suite-compiled
 
+      - name: Test native extensions
+        shell: pwsh
+        timeout-minutes: 10
+        working-directory: lhat-love
+        run: python testing/test_extensions.py --lovec ../dist/relwithdebinfo/lovec.exe --vm ../dist/vmonly-shipping/lovec.exe
+
       # The inputs are other repositories' tips at the time of the build, so
       # the revisions are what makes a package reproducible.
       - name: Record the revisions

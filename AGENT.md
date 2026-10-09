@@ -143,6 +143,10 @@ L^ ランタイムの場所は CMake オプション `LHATOVE_LHAT_DIR`（デフ
 - 親の宣言は**ポインタについての約束**。lhatove では自明に成り立つ — hostdata が持つのは常に `love::Object *`（`pushObject` がそれを取る）で、ポインタは 1 種類しか無い
 - physics も同じ形。Shape の下に CircleShape / PolygonShape / EdgeShape / ChainShape、Joint の下に 11 種。`pushShape` / `pushJoint` が `getType()` で実際の `love::Type` を選ぶので、L^ に届く値は種別そのもの。種別依存メンバはその型にだけ登録する — box2d は「クラスを共有せずメンバを共有する」（stiffness は distance/mouse/weld/wheel）ので、C++ の木が 1 度で言えないものは種別ごとに登録する（`jointMember` ヘルパ）
 
+### ネイティブ拡張
+
+`extensions.txt` はゲームソースのマウント後、`setIdentity` より前に読む（`src/lh/Extensions.cpp`）。fused / `.love` 内のリストだけを採用し、外置き・セーブ領域へのフォールバックはしない。実ファイルの DLL / SO / dylib を解決済み絶対パスでロードし、love と stdlib の登録後に全拡張の TYPES → MEMBERS を登録する。公開 C ABI と共通ヘルパーは lhat の `<lhat/extension.h>`。LÔVE はマニフェスト・パス制約と SDL ローダーを担当し、検証・登録・署名表・寿命管理は `lhat_extensions_*` に委譲する。拡張はホストの関数表を使い、lhat の別コピーをリンクしない。VM 版の署名表は各 DLL に埋め込み、登録直前に切り替える。DLL は restart を越えて保持し、`lhat_registry_dispose` 後に unload。`--dump-host-api` / `--dump-signatures` / 並列 LTON ワーカーにも登録する。詳細は [native-extensions.md](docs/porting/native-extensions.md)、実 DLL を使う回帰テストは `python testing/test_extensions.py`。
+
 ### 旧 Lua コード
 
 `wrap_*.cpp` / `runtime.cpp` / `Reference.cpp` / `LuaThread` / `boot.lua` / `callbacks.lua` / `nogame.lua` と luasocket / enet / lua53 / luahttps は M6 で削除済み（`git log -- src/modules/*/wrap_*.cpp` で読める）。対訳元が要る時は upstream の love2d/love 12.0 か、このリポジトリの履歴を見る。

@@ -1632,6 +1632,8 @@ add_library(liblove SHARED
 	src/lh/lh.h
 	src/lh/PhysfsLoader.cpp
 	src/lh/PhysfsLoader.h
+	src/lh/Extensions.cpp
+	src/lh/Extensions.h
 	src/lh/Boot.cpp
 	src/lh/Boot.h
 	src/lh/Boot.lh.h
