@@ -37,7 +37,7 @@ native/EOSSDK-....dll
 
 公開ヘッダは lhat の `include/lhat/extension.h`（`#include <lhat/extension.h>`）。対応する L^ の公開ヘッダと、エンジンをビルドした際の生成ヘッダ `lhat/version.h` を include パスに加える。**lhat の静的ライブラリや liblove を拡張へリンクしない**。非 inline の L^ API は、ホストから渡された `LhatExtensionAPI` の関数ポインタで呼ぶ。これによりレジストリとランタイムを本体と共有する。
 
-`lhat_extension_v1` を C リンケージで export し、静的寿命の `LhatExtension` を返す。C++ でも公開ヘッダの宣言が C リンケージを指定する。入口では記述子を返すだけにして、L^ API の呼び出しやネットワーク接続は行わない。ローダーは ABI 番号・構造体サイズ・L^ の版数・値サイズを確認してから `register_bindings` を呼ぶ。独自の公開ヘッダ改変や ABI の異なるビルド間での互換性は保証しない。
+`lhat_extension_v2` を C リンケージで export し、静的寿命の `LhatExtension` を返す。C++ でも公開ヘッダの宣言が C リンケージを指定する。入口では記述子を返すだけにして、L^ API の呼び出しやネットワーク接続は行わない。ローダーは ABI 番号・構造体サイズ・L^ の版数・値サイズを確認してから `register_bindings` を呼ぶ。独自の公開ヘッダ改変や ABI の異なるビルド間での互換性は保証しない。
 
 起動順は次のとおり。
 
@@ -54,6 +54,8 @@ native/EOSSDK-....dll
 `void **state` は Program ごとに NULL で始まり、その Program の 2 回の呼び出しで共有する。寿命のある状態には `host->lhat_program_on_dispose` で解放処理を登録する。登録途中の失敗時にも解放できるよう、確保直後に登録する。
 
 登録は実行時だけでなく、`--dump-host-api`、`--dump-signatures`、コンパイル時にも行われる。並列 LTON コンパイラは複数の Program を作り、スレッド開始前にそれぞれの登録を完了する。したがって、登録中に EOS の起動・ログインなどを実行せず、ゲームが呼ぶ関数として公開する。型の identity はプロセス共有なので、解放・共有契約など identity に属するコールバックにはプロセス寿命の context を使う。
+
+ABI 2 の記述子の任意の `shutdown` は、全 Program とレジストリを破棄した後、DLL を解放する直前に呼ばれる。SDK 全体の終了処理はここへ置く。
 
 DLL は restart を越えて保持し、すべての Program・machine・プロセス共有レジストリを破棄した後に、ロードの逆順で解放する。拡張独自のワーカーや非同期処理は Program の解放までに終了させる。ゲーム実行途中に新しい拡張を追加する API は提供しない。
 
@@ -81,9 +83,17 @@ LSP 用の型情報も、拡張を列挙したゲームを指定して生成す�
 .\build\love\Release\lovec.exe --dump-host-api path\to\game\lhat-host.json path\to\game
 ```
 
+ゲームを指定せず、DLL を直接指定することもできる。`--extension` は複数回指定でき、通常版・VM 専用版の双方で使える。
+
+```powershell
+.\build\love\Release\lovec.exe --dump-host-api lhat-host.json --extension path\to\eos_lhat.dll
+```
+
+パスは実行時のカレントディレクトリ基準、または絶対パスで指定し、`.dll` / `.so` / `.dylib` などの拡張子も含める。ゲームも指定した場合は、その `extensions.txt` の後に追加する。同じライブラリの重複指定はエラーになる。`--extension` は `--dump-host-api` 専用で、通常起動や fused 実行ファイルでは使えない。
+
 ## ホスト側の共通ヘルパー
 
-lhat の `lhat_extensions_*` API が、記述子の検証、TYPES → MEMBERS の登録、VM 署名表の切り替え、読み込み済みライブラリの保持と解放を担当する。ホストは `LhatExtensionLoader` に open / symbol / close / error を渡す。LÔVE は `src/lh/Extensions.cpp` で SDL の操作を渡し、ゲームソースから決めた絶対パスだけをロードする。
+lhat の `lhat_extensions_*` API が、記述子の検証、TYPES → MEMBERS の登録、VM 署名表の切り替え、読み込み済みライブラリの保持と解放を担当する。ホストは `LhatExtensionLoader` に open / symbol / close / error を渡す。LÔVE は `src/lh/Extensions.cpp` で SDL の操作を渡し、ゲームソースまたは明示的な `--extension` 指定から決めた絶対パスをロードする。
 
 ほかのホストは同じ公開ヘッダとヘルパーを利用し、リスト形式やロード許可の規則を独自に決められる。静的リンクした拡張は `lhat_extensions_add` で同じ登録処理を使える。詳細は lhat の `DesignDocuments/05-modules.md` §8.13。
 

@@ -17,6 +17,8 @@ public:
 	// Called before the save directory is mounted. Only the game source may
 	// supply the manifest; there is no adjacent-file or save-directory fallback.
 	std::string readManifest(filesystem::Filesystem *fs);
+	// Explicit tooling paths use the process working directory, not the game root.
+	std::string addExplicit(const std::string &path);
 	std::string install(LhatProgram *program) const;
 	// Libraries outlive every program and the process-wide type registry,
 	// including restarts. Call after lhat_registry_dispose, not at boot exit.

@@ -79,7 +79,7 @@ def main():
         # Diagnostics precede checking the game, including malformed manifests.
         cases = [
             ('native/missing', 'Could not load'),
-            ('native/noentry', 'missing lhat_extension_v1'),
+            ('native/noentry', 'missing lhat_extension_v2'),
             ('native/badabi', 'incompatible extension ABI'),
             ('native/badversion', 'incompatible L^ version'),
             ('../probe', 'expected a relative library path'),
@@ -118,6 +118,33 @@ def main():
         run('--dump-host-api', api, game)
         assert 'probe' in api.read_text() and 'peer' in api.read_text()
         json.loads(api.read_text())
+        # Explicit paths work without a game, and still perform all TYPES first.
+        explicit_api = root / 'explicit-host.json'
+        peer_path = native / ('peer' + suffix)
+        probe_path = native / ('probe' + suffix)
+        for engine in (compiler, vm):
+            run('--dump-host-api', explicit_api, '--extension', peer_path.relative_to(root),
+                '--extension', probe_path, exe=engine)
+            dumped = json.loads(explicit_api.read_text())
+            modules = {x.get('module') for x in dumped['functions']}
+            assert {'peer', 'probe', 'love.filesystem'} <= modules
+        # Manifest entries precede explicit additions and share duplicate checks.
+        manifest.write_text('native/probe')
+        run('--dump-host-api', explicit_api, '--extension', peer_path, game)
+        assert 'peer' in explicit_api.read_text()
+        run('--dump-host-api', explicit_api, '--extension', probe_path, game,
+            expected=1, error='duplicate library')
+        manifest.write_text(original, encoding='utf-8')
+        run('--dump-host-api', explicit_api, '--extension', probe_path, '--extension', probe_path,
+            expected=1, error='duplicate library')
+        run('--dump-host-api', '--extension', expected=1, error='needs a library path')
+        run('--extension', probe_path, game, expected=1, error='requires --dump-host-api')
+        run('--fused', '--dump-host-api', explicit_api, '--extension', probe_path,
+            expected=1, error='not available for fused games')
+        explicit_api.write_text('keep existing output')
+        run('--dump-host-api', explicit_api, '--extension', root / 'missing-library',
+            expected=1, error='Could not load')
+        assert explicit_api.read_text() == 'keep existing output'
         # Parallel LTON compilation creates multiple programs in one process.
         for i in range(3):
             (game / f'data{i}.lton').write_text(f'value = {i}')
@@ -192,6 +219,8 @@ public^let^load = p^{
                 fused.write_bytes(engine.read_bytes() + packed.read_bytes())
                 (package / 'extensions.txt').write_text('native/missing')
                 run(exe=fused, expected=84)
+                run('--dump-host-api', explicit_api, '--extension', probe_path, exe=fused,
+                    expected=1, error='not available for fused games')
                 # Absence of an embedded list does not enable the external one.
                 plain_zip = root / 'plain.love'
                 archive(plain, plain_zip)

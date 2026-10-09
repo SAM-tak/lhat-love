@@ -100,6 +100,25 @@ std::string Extensions::readManifest(filesystem::Filesystem *fs)
 	}
 }
 
+std::string Extensions::addExplicit(const std::string &path)
+{
+	try
+	{
+		if (path.empty())
+			return "--extension needs a library path.";
+		auto absolute = std::filesystem::weakly_canonical(std::filesystem::absolute(std::filesystem::u8path(path)));
+		auto resolved = absolute.u8string();
+		if (std::find(paths.begin(), paths.end(), resolved) != paths.end())
+			return "--extension: duplicate library " + path;
+		paths.push_back(std::move(resolved));
+		return {};
+	}
+	catch (const std::exception &e)
+	{
+		return std::string("Could not resolve --extension path: ") + e.what();
+	}
+}
+
 std::string Extensions::install(LhatProgram *program) const
 {
 	if (paths.empty())

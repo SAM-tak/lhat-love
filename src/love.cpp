@@ -61,6 +61,7 @@ static void print_usage()
 		"    love --version                  prints the version and quits\n"
 		"    love --help                     prints this message and quits\n"
 		"    love --dump-host-api [file]     writes the L^ host API (lhat-host.json) for the language server and quits\n"
+		"    love --dump-host-api [file] --extension PATH  adds a native library (repeatable; non-fused only)\n"
 		"    lovec --compile -o DIR file.lh  compiles the source and its required units without running them\n"
 		"    lovec --compile -o DIR file.lton  compiles LTON data without running it\n"
 		"    lovec --compile-game DIR GAME  compiles a whole game and copies its configuration and assets\n"

@@ -80,7 +80,7 @@ static const char *install(const LhatExtensionAPI *host, LhatProgram *program,
     return NULL;
 }
 
-LHAT_EXTENSION_EXPORT const LhatExtension *lhat_extension_v1(void)
+LHAT_EXTENSION_EXPORT const LhatExtension *lhat_extension_v2(void)
 {
     static LhatExtension extension = {
 #ifdef PROBE_BAD_ABI

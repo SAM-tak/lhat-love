@@ -751,8 +751,8 @@ static std::string compileLtons(Runtime &runtime, const Loader &loader, const Ex
 	{
 		auto worker = std::make_unique<Worker>(loader);
 		if (worker->runtime.program() == nullptr
-		    || !worker->runtime.registerAll(registrars, sizeof(registrars) / sizeof(registrars[0]))
-		    || !registerStdlib(worker->runtime.program()))
+			|| !worker->runtime.registerAll(registrars, sizeof(registrars) / sizeof(registrars[0]))
+			|| !registerStdlib(worker->runtime.program()))
 			return "Could not initialize an LTON compiler worker.";
 		std::string extensionError = extensions.install(worker->runtime.program());
 		if (!extensionError.empty())
@@ -1230,6 +1230,7 @@ struct Arguments
 	bool noErrorScreen = false; // --no-error-screen: stderr and exit on failure
 	bool dumpHostApi = false; // --dump-host-api [file]
 	std::string dumpPath = "lhat-host.json";
+	std::vector<std::string> extensionPaths; // explicit libraries for --dump-host-api
 	int dapPort = 0;      // --dap=PORT, 0 for no debugger
 	std::string signaturesPath; // --dump-signatures FILE
 	std::string compileTo;      // --compile-game DIR
@@ -1264,6 +1265,15 @@ static Arguments parseArguments(int argc, char **argv)
 			if (i + 1 < argc && argv[i + 1][0] != '-')
 				args.dumpPath = argv[++i];
 		}
+		else if (a == "--extension")
+		{
+			if (i + 1 >= argc || argv[i + 1][0] == '-' || argv[i + 1][0] == '\0')
+			{
+				args.error = "--extension needs a library path.";
+				return args;
+			}
+			args.extensionPaths.emplace_back(argv[++i]);
+		}
 		else if (a == "--jobs")
 		{
 			if (i + 1 >= argc)
@@ -1273,7 +1283,7 @@ static Arguments parseArguments(int argc, char **argv)
 			}
 			std::string value = argv[++i];
 			if (value.empty() || value.size() > 3 || value.find_first_not_of("0123456789") != std::string::npos
-			    || strtoul(value.c_str(), nullptr, 10) > 256)
+				|| strtoul(value.c_str(), nullptr, 10) > 256)
 			{
 				args.error = "--jobs needs an integer from 0 to 256.";
 				return args;
@@ -1340,7 +1350,9 @@ static Arguments parseArguments(int argc, char **argv)
 	}
 	if (!args.error.empty())
 		return args;
-	if (args.jobsSpecified && (!args.compileRequested || args.sourceCompile))
+	if (!args.extensionPaths.empty() && !args.dumpHostApi)
+		args.error = "--extension requires --dump-host-api.";
+	else if (args.jobsSpecified && (!args.compileRequested || args.sourceCompile))
 		args.error = "--jobs requires --compile-game.";
 	else if (args.compileRequested && args.compileTo.empty())
 		args.error = "--compile needs -o DIR. Usage: lovec --compile -o DIR SOURCE.lh/.lton";
@@ -1436,6 +1448,11 @@ static int boot(int argc, char **argv, bool console)
 	}
 	bool fused = canHasGame || args.fused;
 	fs->setFused(fused);
+	if (fused && !args.extensionPaths.empty())
+	{
+		report("lhatove: arguments", "--extension is not available for fused games.");
+		return 1;
+	}
 
 	// A fused game is launched by whatever ships it, and a launcher may add
 	// options of its own; those are not the player's mistake.
@@ -1499,6 +1516,15 @@ static int boot(int argc, char **argv, bool console)
 	if (canHasGame)
 	{
 		std::string error = extensions.readManifest(fs);
+		if (!error.empty())
+		{
+			report("lhatove: extensions", error);
+			return 1;
+		}
+	}
+	for (const auto &path : args.extensionPaths)
+	{
+		std::string error = extensions.addExplicit(path);
 		if (!error.empty())
 		{
 			report("lhatove: extensions", error);
