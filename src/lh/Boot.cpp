@@ -60,6 +60,7 @@
 // own data files with. std.io stays out -- love.filesystem owns file access
 // -- and so does std.math.vector3, which LOVE's API has no use for.
 #include "stdlib/async.h"
+#include "stdlib/binary.h"
 #include "stdlib/channel.h"
 #include "stdlib/debug.h"
 #include "stdlib/error.h"
@@ -67,6 +68,7 @@
 #include "stdlib/lton.h"
 #include "stdlib/math.h"
 #include "stdlib/mathvector2.h"
+#include "stdlib/net.h"
 #include "stdlib/regex.h"
 #include "stdlib/thread.h"
 #include "stdlib/task.h"
@@ -197,7 +199,12 @@ static bool registerStdlib(LhatProgram *program)
 		|| !lhatstdlib_thread_register(program)
 		|| !lhatstdlib_task_register(program)
 		|| !lhatstdlib_async_register(program)
-		|| !lhatstdlib_channel_register(program))
+		|| !lhatstdlib_channel_register(program)
+		// Networking is standard, as LuaSocket and ENet came with LOVE. Binary
+		// first: std.net adds its Bytes overloads (send, sendTo, receiveInto)
+		// only when it finds std.binary already registered.
+		|| !lhatstdlib_binary_register(program)
+		|| !lhatstdlib_net_register(program))
 		return false;
 	return lhatstdlib_thread_on_finish(program, threadFinished, nullptr);
 }

@@ -1,0 +1,64 @@
+# std.binary and std.net -- networking is standard, as LuaSocket and ENet
+# came with LOVE. The packing is checked against the example in lhat's
+# DesignDocuments/11-binary-and-net.md (3.4), byte for byte.
+module^suite.tests.net
+
+import^love.data
+import^std.binary
+import^std.net
+
+let^test = require^"../lib/test.lh"
+
+# One datagram over the loopback: `a` binds port 0, `b` sends to the port it
+# got. receive never waits (11 の 4.2), so it is polled a bounded number of
+# times rather than assumed to be there.
+let^loopback = p^-> string^|std.net.Error {
+    let^a = try^std.net.udp()
+    let^b = try^std.net.udp()
+    try^a.bind("127.0.0.1", 0)
+    let^host, port = a.getLocal()
+    try^b.sendTo("hello", "127.0.0.1", port)
+    for^i from^0 to^100000 {
+        let^data, from, fromPort = try^a.receive()
+        if^data fits^string^ {
+            a.dispose()
+            b.dispose()
+            return^data
+        }
+    }
+    a.dispose()
+    b.dispose()
+    return^"(nothing arrived)"
+}
+
+public^let^run = p^{
+    test.begin("std.binary")
+
+    let^b = std.binary
+    let^input = b.format({
+        { "aaa", b.uint(16) },
+        { "bbb", b.uint(8) },
+        { "buttonA", b.bool() },
+        { "buttonB", b.bool() },
+        { "buttonC", b.bool() },
+    })
+    test.number("16 + 8 + 1 + 1 + 1 bits", 27, input.bits())
+
+    let^data = input.encode({
+        aaa = 11111, bbb = 111,
+        buttonA = true^, buttonB = true^, buttonC = false^,
+    })
+    test.number("27 bits fill 4 bytes", 4, data.size)
+    # Low bits first, low bytes first: 11111 = 0x2B67, 111 = 0x6F, then the
+    # buttons in bits 0..2 of the last byte.
+    test.text("packed low bits first", "672b6f03", love.data.encode(love.data.EncodeFormat.hex, data))
+
+    let^got = input.decode(data) catch^{}
+    test.isTrue("decode reads aaa back", got["aaa"] = 11111)
+    test.isTrue("decode reads bbb back", got["bbb"] = 111)
+    test.isTrue("decode reads the buttons back",
+        got["buttonA"] = true^ and^got["buttonB"] = true^ and^got["buttonC"] = false^)
+
+    test.begin("std.net")
+    test.text("a datagram crosses the loopback", "hello", loopback() catch^"(net error)")
+}

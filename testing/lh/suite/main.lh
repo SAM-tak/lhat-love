@@ -27,6 +27,7 @@ let^imageTests = require^"tests/image.lh"
 let^graphicsTests = require^"tests/graphics.lh"
 let^physicsTests = require^"tests/physics.lh"
 let^threadTests = require^"tests/thread.lh"
+let^netTests = require^"tests/net.lh"
 
 var^frames = 0
 var^summary = "running..."
@@ -49,6 +50,7 @@ public^let^load = p^{
     graphicsTests.run()
     physicsTests.run()
     threadTests.run()
+    netTests.run()
 
     let^problems = test.problems()
     let^elapsed = love.timer.getTime() - started

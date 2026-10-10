@@ -40,7 +40,7 @@
 | event | 1 | lh_Event.cpp | M1: pump/dispatch/quit/clear。M6: restart/restartValue（poll/wait/push は未） |
 | window | 1 | lh_Window.cpp | M1-2: setMode(w,h[,settings])/getMode/title/isOpen/close/fullscreen/DPI/focus/vsync |
 | keyboard | 1 | lh_Keyboard.cpp | M1: isDown/isScancodeDown/keyRepeat/textInput。M6 後: キーとスキャンコードを enum（`Key` / `Scancode`、識別子にならない名前は SDL 名の小文字、宣言外の文字キーは `unknown`）、getKeyFromScancode/getScancodeFromKey |
-| mouse | 2 | lh_Mouse.cpp 他 | M1: position/isDown/visible（Cursor は未）。M6 後: ボタンを enum（`love.mouse.Button`、`.value` が LÖVE のボタン番号）|
+| mouse | 2 | lh_Mouse.cpp 他 | M1: position/isDown/visible（Cursor は未）。M6 後: ボタンを enum（`love.mouse.Button`、`.value` が LÖVE のボタン番号） |
 | graphics | 12 | lh_Graphics.cpp / lh_GraphicsState.cpp / lh_Shader.cpp / lh_Mesh.cpp / lh_ParticleSystem.cpp / lh_Video.cpp | M1: 即時描画。M2: Texture・Font。M5: Canvas（`newCanvas` → Texture、setCanvas/getCanvas、readbackTexture）。M6 後: Texture / Mesh / SpriteBatch / ParticleSystem / TextBatch / Video を `Drawable` の下に宣言し、`draw` は `love.graphics.Drawable` 1 語、Shader（newShader/validateShader、send/sendColor/hasUniform）、Quad、Mesh（標準頂点形式のみ）、SpriteBatch、ParticleSystem、TextBatch、Video（newVideo）、状態系（blend/scissor/stencil/colorMask/defaultFilter/lineStyle/lineJoin/wireframe/shear/applyTransform/transformPoint/ellipse/arc/getRendererInfo/getStats/reset）。Buffer/compute/カスタム頂点形式/テクスチャ配列・立方体/drawInstanced/captureScreenshot は未 |
 | filesystem | 4 | lh_Filesystem.cpp | M2: read/write/append/exists/getInfo/getDirectoryItems/createDirectory/remove/identity/source/isFused/load/newFile(File)/newFileData(FileData)。mount/unmount はパス・FileData に対応（明示名・検索順指定可）。lines は未 |
 | image | 3 | lh_Image.cpp | M2-3: newImageData(path \| w,h)、寸法、getPixel/setPixel/mapPixel。CompressedImageData・encode/paste は未 |
@@ -56,4 +56,4 @@
 | physics/box2d | 21 | lh_Physics.cpp / lh_World.cpp / lh_Body.cpp / lh_Shape.cpp / lh_Joint.cpp / lh_Contact.cpp（コア脱 Lua 済み） | M4: World/Body/Shape/Joint/Contact の 5 型。M6 後: 種別を親子宣言に展開し 20 型（Shape の下に Circle/Polygon/Edge/Chain、Joint の下に 11 種。コンストラクタは種別を返し、`fits^` で分岐できる）、newWorld/newBody/new*Body/new*Shape/new*Joint/getDistance/meter/compute*、コールバック・filter・query・rayCast、userData。deprecated API（body 無し shape・newFixture・getChildEdge）は非対応 |
 | thread | 3 | （廃止） | M5 で love.thread として実装、M6 後に廃止。`std.thread.spawn(閉包, ...)` / `std.channel` が引き継ぎ、engine 側は `threaderror` イベントと `Runtime` 破棄時の `join_all` / `forget_named` のみ。`src/modules/thread/` に残るのは Mutex/Conditional/Threadable（audio・video・ImageData が使う） |
 | video | 2 | graphics/lh_Video.cpp | M5: `love.graphics.newVideo(path[, {audio, dpiscale}])` → Video{play pause rewind seek tell isPlaying 寸法 getSource/setSource getFilename setFilter}。love.video.VideoStream は直接公開しない |
-| luasocket / enet / luahttps / lua53 | - | 恒久廃止 | 確定 |
+| luasocket / enet / luahttps / lua53 | - | 恒久廃止 | 確定。ネットワークは L^ の標準ライブラリ `std.net`（UDP）と `std.binary`（ビット単位の直列化）を標準で登録して置き換えた。TCP・HTTPS は未 |
