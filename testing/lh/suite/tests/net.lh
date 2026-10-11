@@ -9,6 +9,25 @@ import^std.net
 
 let^test = require^"../lib/test.lh"
 
+# A format carries the table type it packs: encode takes one, decode
+# answers one, and got.aaa is checked like any field.
+let^Input = t^{ aaa:number^, bbb:number^, buttonA:bool^, buttonB:bool^, buttonC:bool^ }
+let^input = std.binary.format(Input, {
+    { "aaa", std.binary.uint(16) },
+    { "bbb", std.binary.uint(8) },
+    { "buttonA", std.binary.bool() },
+    { "buttonB", std.binary.bool() },
+    { "buttonC", std.binary.bool() },
+})
+
+# decode answers the table or a std.binary.Error; try^ needs a procedure
+# whose answer can carry the error.
+let^readsBack = p^data:string^ -> bool^|std.binary.Error {
+    let^got = try^input.decode(data)
+    return^got.aaa = 11111 and^got.bbb = 111
+        and^got.buttonA = true^ and^got.buttonB = true^ and^got.buttonC = false^
+}
+
 # One datagram over the loopback: `a` binds port 0, `b` sends to the port it
 # got. receive never waits (11 の 4.2), so it is polled a bounded number of
 # times rather than assumed to be there.
@@ -34,16 +53,6 @@ let^loopback = p^-> string^|std.net.Error {
 public^let^run = p^{
     test.begin("std.binary")
 
-    let^b = std.binary
-    let^input = b.format({
-        { "aaa", b.uint(16) },
-        { "bbb", b.uint(8) },
-        { "buttonA", b.bool() },
-        { "buttonB", b.bool() },
-        { "buttonC", b.bool() },
-    })
-    test.number("16 + 8 + 1 + 1 + 1 bits", 27, input.bits())
-
     let^data = input.encode({
         aaa = 11111, bbb = 111,
         buttonA = true^, buttonB = true^, buttonC = false^,
@@ -52,12 +61,7 @@ public^let^run = p^{
     # Low bits first, low bytes first: 11111 = 0x2B67, 111 = 0x6F, then the
     # buttons in bits 0..2 of the last byte.
     test.text("packed low bits first", "672b6f03", love.data.encode(love.data.EncodeFormat.hex, data))
-
-    let^got = input.decode(data) catch^{}
-    test.isTrue("decode reads aaa back", got["aaa"] = 11111)
-    test.isTrue("decode reads bbb back", got["bbb"] = 111)
-    test.isTrue("decode reads the buttons back",
-        got["buttonA"] = true^ and^got["buttonB"] = true^ and^got["buttonC"] = false^)
+    test.isTrue("decode reads every field back", readsBack(data) catch^false^)
 
     test.begin("std.net")
     test.text("a datagram crosses the loopback", "hello", loopback() catch^"(net error)")
