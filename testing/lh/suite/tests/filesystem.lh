@@ -5,6 +5,7 @@
 module^suite.tests.filesystem
 
 import^love.filesystem
+import^std.json
 
 let^test = require^"../lib/test.lh"
 
@@ -101,6 +102,19 @@ public^let^run = p^{
     test.isFalse("mount invalid FileData fails", love.filesystem.mount(love.filesystem.newFileData("not a ZIP", "invalid.zip"), "memory"))
     test.isTrue("remove archive fixture", love.filesystem.remove("suite-mount.zip"))
     test.isTrue("remove loose mount file", love.filesystem.remove("mount-value.txt"))
+
+    # std.json: what a game keeps in its save directory (a settings file) is
+    # read back by std.json's own reader, which a VM-only engine has too.
+    let^encoded = std.json.encode({ lang = "en", fullscreen = true^ }) catch^""
+    love.filesystem.write("suite.json", encoded) catch^nil^
+    let^decoded = std.json.decode(love.filesystem.read("suite.json") catch^"") catch^nil^
+    if^decoded fits^t^{ lang : string^, fullscreen : bool^ } {
+        test.text("json round trip: a string", "en", decoded.lang)
+        test.isTrue("json round trip: a boolean", decoded.fullscreen)
+    else^:
+        test.isTrue("json round trip answers the table", false^)
+    }
+    test.isTrue("remove the json file", love.filesystem.remove("suite.json"))
 
     # tidy up
     test.isTrue("remove a file", love.filesystem.remove("suitedir/inner.txt"))

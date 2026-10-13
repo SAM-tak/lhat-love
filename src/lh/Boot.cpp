@@ -64,6 +64,7 @@
 #include "stdlib/channel.h"
 #include "stdlib/debug.h"
 #include "stdlib/error.h"
+#include "stdlib/json.h"
 #include "stdlib/load.h"
 #include "stdlib/lton.h"
 #include "stdlib/math.h"
@@ -185,6 +186,10 @@ static bool registerStdlib(LhatProgram *program)
 		|| !lhatstdlib_regex_register(program)
 		|| !lhatstdlib_load_register(program)
 		|| !lhatstdlib_lton_register(program)
+		// JSON for what a game writes and reads at run time (a settings file):
+		// std.lton reads through the front end, which a VM-only engine lacks,
+		// and std.json has its own reader.
+		|| !lhatstdlib_json_register(program)
 		|| !lhatstdlib_math_register(program)
 		// A 2D vector for the game to use. love.* keeps upstream's x, y pairs,
 		// so a Vector2 is taken apart at the call and put together from the
@@ -1056,6 +1061,15 @@ static bool toEditor(void *context, const char *unit, char *out, size_t capacity
 // love.thread's binding does nothing for this.
 //
 // A fused game never opens the port -- see where boot() clears the option.
+//
+// love.event.restart keeps the debugger: the run that restarts detaches the
+// session in place of ending it (the connection and the breakpoints stay),
+// and the next boot puts it on its own machine and program without waiting
+// on the port again. Kept here between the two boots.
+#ifdef LHATOVE_WITH_DAP
+static DapSession *carriedSession = nullptr;
+#endif
+
 class DebugSession
 {
 public:
@@ -1076,6 +1090,18 @@ public:
 		paths.context = (void *) program;
 		paths.to_unit = toUnit;
 		paths.to_editor = toEditor;
+		if (carriedSession != nullptr)
+		{
+			DapSession *carried = carriedSession;
+			carriedSession = nullptr;
+			if (dap_session_rebind(carried, machine, program, &paths))
+			{
+				session_ = carried;
+				return nullptr;
+			}
+			dap_session_end(carried, 0);
+			return "the debugger left during the restart";
+		}
 		// The program stays alive for the session: the adapter reads its
 		// compiled line tables to say which breakpoints can bind. No
 		// DapLanguage: this engine carries no message catalogs yet, so the
@@ -1098,6 +1124,12 @@ public:
 	void end(int code)
 	{
 #ifdef LHATOVE_WITH_DAP
+		if (session_ != nullptr && code == LOVE_LH_RESTART && !dap_session_ended_run(session_))
+		{
+			dap_session_detach(session_);
+			carriedSession = session_;
+			session_ = nullptr;
+		}
 		if (session_ != nullptr)
 		{
 			dap_session_end(session_, code);
@@ -1954,6 +1986,14 @@ int love_lh_boot(int argc, char **argv, bool console)
 
 void love_lh_shutdown(void)
 {
+#ifdef LHATOVE_WITH_DAP
+	// A restart whose next boot never reached its debugger.
+	if (love::lh::carriedSession != nullptr)
+	{
+		dap_session_end(love::lh::carriedSession, 1);
+		love::lh::carriedSession = nullptr;
+	}
+#endif
 	// Only the process-wide registry is left to give back: a Runtime is a
 	// stack object inside boot(), so every program is gone by now.
 	lhat_registry_dispose();
