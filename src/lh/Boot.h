@@ -73,6 +73,14 @@ void setRestartGamePath(const std::string &path);
 // love.event.restartValue() answers this.
 const Variant &restartPayload();
 
+// love.event.reload: reads every changed unit again and, when they check
+// and compile, asks for the game to be started over at the next frame
+// boundary -- its main unit run afresh, a new handlers table, a new run --
+// without a new program, window or modules. Units nothing changed keep
+// their state. Answers the empty string when the reload was accepted, and
+// the diagnostics otherwise; the running game is left as it was then.
+std::string requestReload();
+
 } // lh
 } // love
 #endif

@@ -1,0 +1,9 @@
+# The save directory has to come before the source: the test writes its new
+# player.lh there, and that copy is the one the loader must read.
+identity = "lhatove-reload",
+appendidentity = false^,
+window = {
+    title = "lôve reload",
+    width = 320,
+    height = 240,
+},

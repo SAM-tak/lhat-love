@@ -1,0 +1,4 @@
+let^a = require^"a.lh"
+print($"first {a.first()}")
+print($"again {a.again()}")
+print($"first {a.first()}")

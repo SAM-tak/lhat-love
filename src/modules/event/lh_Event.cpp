@@ -46,6 +46,7 @@ namespace event
 struct EventBinding
 {
 	const lh::TypeRegistry *registry;
+	const lh::Errors *errors;
 };
 
 static void lh_pump(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
@@ -224,6 +225,22 @@ static void lh_restartValue(LhatMachine *machine, void *context, const LhatValue
 	*answerCount = 1;
 }
 
+// reload() -> nil, or love.event.Error when a changed unit would not check
+// or compile. Not in LOVE: the game starts over from its main unit at the
+// next frame boundary, with every unit that changed read again and every
+// other one keeping its state (Boot.h). The program, window and modules
+// stay; a failure leaves the running game as it was.
+static void lh_reload(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
+					  LhatValue *answers, int *answerCount)
+{
+	(void) arguments;
+	(void) count;
+	const EventBinding *binding = (const EventBinding *) context;
+	std::string problems = lh::requestReload();
+	answers[0] = problems.empty() ? lhat_nil() : lh::fail(machine, binding->errors->eventRejected, problems);
+	*answerCount = 1;
+}
+
 static void lh_clear(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
 					 LhatValue *answers, int *answerCount)
 {
@@ -244,12 +261,22 @@ namespace lh
 
 bool lhopen_love_event(Context &ctx)
 {
-	if (ctx.types())
-		return true;
-
 	using namespace love::event;
-	binding.registry = ctx.registry;
 	const char *m = "love.event";
+
+	// 04 の 2.4: what love.event can fail at, declared where it fails.
+	if (ctx.types())
+	{
+		static const char *const variants[] = {"Rejected"};
+		const LhatErrorKind *kinds[1] = {nullptr};
+		if (!ctx.errorKind(m, variants, 1, kinds))
+			return false;
+		ctx.errors->eventRejected = kinds[0];
+		return true;
+	}
+
+	binding.registry = ctx.registry;
+	binding.errors = ctx.errors;
 	return ctx.func(m, "pump", "p^;", lh_pump, nullptr)
 		&& ctx.func(m, "pump", "p^number^;", lh_pump, nullptr)
 		&& ctx.func(m, "dispatch", "p^t^{} -> number^|string^|nil^;", lh_dispatch, &binding)
@@ -259,6 +286,7 @@ bool lhopen_love_event(Context &ctx)
 		&& ctx.func(m, "restart", "p^;", lh_restart, &binding)
 		&& ctx.func(m, "restart", "p^any^;", lh_restart, &binding)
 		&& ctx.func(m, "restartValue", "p^ -> any^;", lh_restartValue, &binding)
+		&& ctx.func(m, "reload", "p^ -> nil^|love.event.Error;", lh_reload, &binding)
 		&& ctx.func(m, "clear", "p^;", lh_clear, nullptr);
 }
 

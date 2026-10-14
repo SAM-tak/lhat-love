@@ -29,6 +29,7 @@
 
 - **ラッパのキャッシュ** — machine ごとに 1 オブジェクト 1 ラッパ。最初はホスト側の map で組んで漸進 GC の下で不健全（physics の約半分が落ちた）と判り、lhat に弱参照キャッシュ（05 の 8.12）を入れてもらって載せ直した。physics 20/20、120 フレームの collected 1,582 → 1,164
 - **clang-cl が既定の処理系** — `build.ps1` が Ninja Multi-Config + VS 同梱 clang-cl で組む（`-Msvc` で cl.exe）。VM 負荷のループで約 36% 減。係留先はホストの根（`lhat_machine_host_root`。lhat `d7dc455` の共有表と `b10f3fe` の根に対応）
+- **love.event.reload**（本家に無い）— 書き換わったユニットと、それを `require^` で辿るユニットを呼んだ場で再検査・再コンパイルし、通れば次のフレームの境目で main.lh からやり直す。program・ウィンドウ・モジュールと、書き換えの届かないユニットの状態は残る。通らなければ `love.event.Error` を返して今のゲームが続く。やり直す前に restart と同じくワーカーを止め（task pool の停止・thread の join）名前付きチャネルを捨てる。`lhat_reload` ではなく部品（invalidate / check / compile）で組み、retire した body は join・forget・旧 boot roots の解除後、境目で `lhat_program_discard_unheld` により回収する（lhat `c174664`）。旧閉包・pending cleanup が残れば次の reload 境界まで保留。定数オブジェクトは program 終了まで残る。`testing/lh/reload`（exit=12）。main の下に名乗るユニットも状態が残る（lhat `4a00edf`）
 - **添字は 0 から** — L^ 本体に合わせ、容器のキーと LÖVE の API 上の添字（Mesh 頂点・SpriteBatch id・Joystick の軸/ボタン/ハット・Contact の子など）を 0 起点に。マウスボタン・physics カテゴリ・`random` の範囲・ID は据え置き
 
 ## モジュール別
@@ -37,7 +38,7 @@
 | --- | --- | --- | --- |
 | love (core) | - | src/modules/love/lh_love.cpp | M0 分のみ（print・getVersion・probe）。エラー宣言はモジュールごとに移した |
 | timer | 1 | lh_Timer.cpp | M1: step/getDelta/getFPS/getAverageDelta/sleep/getTime |
-| event | 1 | lh_Event.cpp | M1: pump/dispatch/quit/clear。M6: restart/restartValue（poll/wait/push は未） |
+| event | 1 | lh_Event.cpp | M1: pump/dispatch/quit/clear。M6: restart/restartValue（poll/wait/push は未）。M6 後: reload（本家に無い） |
 | window | 1 | lh_Window.cpp | M1-2: setMode(w,h[,settings])/getMode/title/isOpen/close/fullscreen/DPI/focus/vsync |
 | keyboard | 1 | lh_Keyboard.cpp | M1: isDown/isScancodeDown/keyRepeat/textInput。M6 後: キーとスキャンコードを enum（`Key` / `Scancode`、識別子にならない名前は SDL 名の小文字、宣言外の文字キーは `unknown`）、getKeyFromScancode/getScancodeFromKey |
 | mouse | 2 | lh_Mouse.cpp 他 | M1: position/isDown/visible（Cursor は未）。M6 後: ボタンを enum（`love.mouse.Button`、`.value` が LÖVE のボタン番号） |

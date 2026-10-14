@@ -1,0 +1,112 @@
+# love.event.reload (not in LOVE): changed units are read again and the game
+# starts over from main.lh at the next frame, without a restart.
+#
+# First world: a player.lh that does not check is refused and this world goes
+# on; a good one is accepted. Second world: the new player.lh is the one
+# running, state.lh kept its count and an old closure, and main.lh's own
+# variables started over. Drop that closure and reload again to reclaim it.
+# Exit code 12.
+module^reloadtest
+
+import^love.event
+import^love.filesystem
+import^love.keyboard
+import^std.thread
+import^std.channel
+
+let^player = require^"player.lh"
+let^state = require^"state.lh"
+
+var^frames = 0
+var^failed = false^
+
+let^check = p^label:string^, ok:bool^{
+    if^!ok {
+        print($"FAIL: {label}")
+        failed := true^
+    }
+}
+
+let^finish = p^{
+    love.filesystem.remove("player.lh")
+    if^failed { love.event.quit(1) else^: love.event.quit(12) }
+}
+
+# Workers end and named channels start over at a reload, as at a restart.
+let^leaveForOldWorld = p^{
+    let^old = try^std.channel.named("reloadtest")
+    let^_^= try^old.push("meant for the old world")
+    let^_^= try^std.thread.spawn(p^... { return^"done" })
+catch^:
+    check("the old world's channel and worker", false^)
+}
+
+let^newWorldStartsClean = p^{
+    let^fresh = try^std.channel.named("reloadtest")
+    check("named channels start over", fresh.count() = 0)
+    let^worker = try^std.thread.spawn(p^... { return^"again" })
+    let^said = try^worker.join()
+    check("a worker runs in the new world", said fits^string^)
+catch^:
+    check("the new world's channel and worker", false^)
+}
+
+public^let^load = p^{
+    let^world = state.enter()
+    print($"world {world}: player version {player.version()}, frames {frames}")
+    check("main.lh's variables start over", frames = 0)
+
+    if^world = 1 {
+        check("the source player.lh runs first", player.version() = 1)
+        state.keep(player.version)
+        leaveForOldWorld()
+
+        love.filesystem.write("player.lh", "module^reloadtest.player\npublic^let^version = f^-> number^{ \"two\" }\n") catch^nil^
+        let^refused = love.event.reload()
+        check("a player.lh that does not check is refused", refused fits^love.event.Error)
+        if^refused fits^love.event.Error { print($"refused as expected:\n{refused.message}") }
+        check("the refused world keeps running", player.version() = 1)
+
+        love.filesystem.write("player.lh", "module^reloadtest.player\npublic^let^version = f^-> number^{ 3 }\n") catch^nil^
+        check("a good player.lh is accepted", love.event.reload() fits^nil^)
+
+        # The last call decides: a refusal after an acceptance cancels it,
+        # and the one after that is what the next world runs.
+        love.filesystem.write("player.lh", "module^reloadtest.player\npublic^let^version = f^-> number^{ \"three\" }\n") catch^nil^
+        check("a refusal after an acceptance", love.event.reload() fits^love.event.Error)
+        love.filesystem.write("player.lh", "module^reloadtest.player\npublic^let^version = f^-> number^{ 2 }\n") catch^nil^
+        let^accepted = love.event.reload()
+        check("accepted again", accepted fits^nil^)
+        # The new world begins at the next frame boundary, not here.
+        check("this world runs to the end of its frame", player.version() = 1)
+    elseif^world = 2:
+        check("the new player.lh runs", player.version() = 2)
+        check("an unchanged module's old closure still runs", state.keptVersion() = 1)
+        state.drop()
+        newWorldStartsClean()
+        check("reload after dropping the old closure", love.event.reload() fits^nil^)
+    elseif^world = 3:
+        check("the new player.lh still runs", player.version() = 2)
+        check("the old closure was dropped", state.keptVersion() = 0)
+        finish()
+    else^:
+        check("only three worlds", false^)
+        finish()
+    }
+}
+
+public^let^update = p^dt:number^{
+    frames += 1
+    if^frames = 120 {
+        check("the reload happened", false^)
+        finish()
+    }
+}
+
+# How a game binds it (docs/porting/main-lh.md); here only to be checked.
+public^let^keypressed = p^key:love.keyboard.Key, scancode:love.keyboard.Scancode, isrepeat:bool^{
+    if^key = love.keyboard.Key.f5 {
+        let^refused = love.event.reload()
+        if^refused fits^love.event.Error { print(refused.message) }
+    }
+}

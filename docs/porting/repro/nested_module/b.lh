@@ -1,0 +1,7 @@
+module^game.b
+print("b body runs")
+var^count = 0
+public^let^bump = p^-> number^{
+    count += 1
+    return^count
+}

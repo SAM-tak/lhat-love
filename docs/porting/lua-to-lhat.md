@@ -144,11 +144,14 @@ lhatove の Lua/LuaJIT を L^ (lhat) へ置き換えるにあたっての確定�
 - `testing/lh/suite` は M6 で全モジュールに広げた（451 チェック）。移植中に見つけて直したもの: `love.graphics.validateShader` が壊れたコードで投げる例外を捕まえていなかった（プロセスが fastfail）→ `(false, message)` を答える、`getScissor` が scissor を切った後も最後の矩形を答えていた → 0 を答える、`Shape.setCategory` / `setMask` に引数なしアームが無かった（LÖVE の「全部と衝突」）
 - L^ の制約が 1 つ見つかった: 親モジュールと子モジュールを同じスコープに import できない（`love` と `love.graphics`）。もう 1 件は綴りの誤りだった — **ブロックは `do^{ ... }`**（02 の 8.7）。裸の `{ ... }` はテーブル literal なので文にならない
 - lhat `995d0e8` で解消: 親と子の同時 import（`import^ love` と `import^ love.graphics`）、登録型どうしの重なり判定（`newThread` は `p^File;` / `p^FileData;` の 2 アームへ戻した）。`testing/lh/suite` は 451 チェック
-- **ホットリロードは入れない**（`lhat_reload` を見て再検討する前に読むこと）。LÖVE 本体にもホットリロードは無く、あるのは `love.event.restart` = 全部捨てて `boot()` からやり直す形だけ。Lua 版のゲーム作者がやっていたのは `love.filesystem.load` で書き直したファイルを読み直して手で差し替える自前の仕組みで、lhat `9a5d49a` の `lhat_reload(program, path, machines, n)` を使っても届く範囲は**同じ**:
-  - **状態は残らない**。入れ替わるのはユニットで、`var^` の現在値は新しい body の初期化で上書きされる。「敵の位置を保ったまま挙動だけ差し替える」は結局ゲーム側が状態を外へ逃がして書くことになる
-  - **`main.lh` は差し替えても効かない**。handlers は起動時に C++ が組んで `love.boot.handlers` に park したテーブルで、ユニットを入れ替えても指す先は古い閉包のまま。効かせるには handlers を組み直す経路が要る（held とは別の話 — `lhat_reload` は旧 body を掴まれていても成功し、解放を次回まで延ばすだけ）
-  - 差が出るのは「壊れたコードを読み込んでも旧世界が走り続ける」点だけで、それは `lhat_reload` の手柄というより検査器の手柄
-  やるとしたら決めることは 3 つ: 引き金（`love.event.reload(path)` か、エンジンがファイル監視を持つか）、handlers の組み直し、`machines` の集め方（program を install した全 machine。love.thread のワーカー分は `ParkingLot` の machine 索引から取れる）
+- **状態を保つホットリロードは入れず、「再起動しないやり直し」`love.event.reload()` を入れた**（2026-10-14。それまでは「ホットリロードは入れない」としていた）。LÖVE 本体にあるのは `love.event.restart` = 全部捨てて `boot()` からやり直す形だけで、Lua 版の lurker / lume.hotswap も状態を本当に保つわけではない（インスタンスがメタテーブル経由でクラス表を引くので、表の identity を保てば新しいメソッドが効く、というだけ）。要求を「プレイヤーや敵のスクリプトを直したら、ウィンドウを閉じずにタイトルから確かめたい」に絞ると、状態を保つ必要は無く、届く:
+  - **呼んだ場で読み直す**。全ユニットへ `lhat_program_invalidate`（文字が変わっていなければ 0 で何もしない）→ stale になったユニットを check → `lhat_unit_export_conforms` でコールバック型を確かめ → `lhat_program_compile`。通らなければ `love.event.Error` を返し、旧世界がそのまま走る（ここは検査器の手柄）
+  - **やり直しはフレームの境目**。run のコルーチンを手放し、retire したユニットのモジュールと main のモジュールを `lhat_machine_forget_unit` で機械から外し、main を走らせ直して handlers を組み直し、新しい run を始める（`Boot.cpp` の `startGame` は起動と共用）。以前の論点だった「handlers が古い閉包を指す」はこれで消える。書き換えの届かないユニットは機械に残るので状態ごと生きる
+  - **`lhat_reload` は使わない**。あれは検査と解放を 1 回の呼び出しでやるが、ここでは時機が違う — 検査は `love.event.reload` の中（拒否をその場の答えにし、旧世界を続けるため）、解放はワーカーを join した後のフレームの境目でしか安全でない。だから部品で組み、ワーカーを join して forget と旧 boot roots の解除を済ませた境目で **`lhat_program_discard_unheld` によって回収する**（lhat `c174664`）。旧閉包や未実行の cleanup が残れば保留し、次の reload 境界で再試行する。定数オブジェクトは program 終了まで残る
+  - 後始末は restart と同じくワーカーから: `lhatstdlib_task_stop` → `lhatstdlib_thread_join_all` → `lhatstdlib_channel_forget_named`、続けて `audio->stop()`・`graphics->reset()`・`event->clear()`。終わらないワーカーで止まるのも restart・quit と同じ契約。名前付きチャネルは新世界で別物になる — 残すユニットが握り続けた参照は古い方を指すので、取り直す書き方にする（リロード時のコールバックで取り直すイディオムは先送り）
+  - **入れ子のモジュール名も残る**（lhat `4a00edf`）。親（`module^game`）と子（`game.player`）は登録簿の同じ表に同居し、forget(親) は子を残す。それ以前は親の登録が子を置いた仮の表を上書きしていた
+  - 短い形の `require^` の根は登録簿の**生きた別名**（lhat `c3b6a5f`、`import^` と同じ）。lhat の前提「reload は機械を止めて行い、ホストは根を走らせ直して登録簿を埋めてから他の L^ を再開する」は、境目で forget → main を走らせ直す → 新しい run、という順そのもの。書き換えの届かない単位が変わった単位を名指すことは型の上で書けない（名指すには `require^` が要り、それは連鎖の辺になる）ので、生きた別名で「古い単位が新しい単位を見る」場面は無い
+  - fused と VM のみビルドは読み直さず、やり直すだけ
 - **front end を落とした配布ができる**（`scripts/build.ps1 -VmOnly`）。lhat の `LHAT_WITH_FRONTEND=OFF` に乗る形で、材料はフル版が作りエンジンが読む 2 段構え:
   - **ユニット** — `lhat_unit_write_binary`。読み戻しはローダーが差し替えるだけで `require^` もパスも同じ（先頭バイトで判別、`lhat_program_is_binary_unit`）
   - **登録** — 署名はテキストなので読むのに front end が要る。フル版が `lhat_program_write_signatures` で表を書き、VM 版は `src/lh/Signatures.h` として**埋め込んだ表を登録の前に読む**。噛み合わなければ起動時に断る

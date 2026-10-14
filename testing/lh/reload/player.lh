@@ -1,0 +1,5 @@
+# What the test rewrites. The source copy is version 1; main.lh writes the
+# later ones into the save directory, which the loader reads first.
+module^reloadtest.player
+
+public^let^version = f^-> number^{ 1 }

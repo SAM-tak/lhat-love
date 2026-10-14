@@ -188,6 +188,31 @@ LTONのコンパイルは `--jobs N` でスレッド数を指定できる（0〜
 - **デバッガとは併用できる**（`-VmOnly` 単体）。行番号はコンパイル済みでも残るので
   ブレークポイントもスタックも効く。ローカル名が要るなら `--compile-game ... --debug-names`
 
+## 再起動なしで読み直す（love.event.reload）
+
+本家に無い API。プレイヤーや敵のスクリプトを書き換えたら、ウィンドウを閉じずにタイトルからやり直して確かめるためのもの。
+
+```lhat
+public^let^keypressed = p^key:love.keyboard.Key, scancode:love.keyboard.Scancode, isrepeat:bool^{
+    if^key = love.keyboard.Key.f5 {
+        let^refused = love.event.reload()
+        if^refused fits^love.event.Error { print(refused.message) }
+    }
+}
+```
+
+- **呼んだその場で**、書き換わったユニットとそれを `require^` しているユニット（main.lh まで遡る）を読み直し、検査・コンパイルする。通らなければ `love.event.Error`（`message` に診断）を返し、**今のゲームはそのまま走り続ける**
+- 通れば `nil^` を返し、**次のフレームの境目で** main.lh からやり直す — `load` が呼ばれ、タイトルに戻る。このフレームの残りは古いコードのまま
+- **残るもの**: ウィンドウ・GL・conf・読み込んだモジュール、そして**書き換えの届かなかったユニットの状態**（`var^` も表も）。画像や音のキャッシュをそういうユニットに置けば読み直さずに済む
+- **消えるもの**: main.lh と、書き換えが `require^` を辿って届いたユニットの `var^`。再生中の音は止まり、`love.graphics` の状態は `reset` され、未処理のイベントは捨てられる
+- 変化が無くても呼べる（ただ main.lh からやり直す）。conf.lton の変更は効かない — `love.event.restart()` を使う
+- **ワーカーとチャネルは restart と同じ扱い**: やり直す前に `std.task` の pool を止め、`std.thread` のワーカーを全部 join し、名前付きチャネルを捨てる。終わらないワーカーがいるとやり直しも止まる（restart・quit と同じ）。pool は新しい `load` でもう一度 `std.task.start` する。書き換えの届かないユニットが `.named()` で取ったチャネルを握り続けると、新世界が取り直したものとは別物になる — 使う時に `.named()` で取り直す
+- 古い body はワーカーを join した境目で、旧 game・handlers・run・coroutine の参照を外してから `lhat_program_discard_unheld` で回収する。残したモジュールの旧閉包や未実行の cleanup が保持していれば解放せず、次の reload 境界で再試行する。定数オブジェクトは program 終了まで残る
+- main.lh の下に名乗るユニット（`module^game` に対する `module^game.player`）も、書き換えが届かなければ状態ごと残る
+- **`require^` は main.lh の先頭に書く**: 短い形の `require^` の根は登録簿の生きた別名なので、やり直しの途中、まだ `require^` し直していない単位を読むと `nil^` で止まる。main の body が `require^` の行より前に、他のユニットの関数を呼んでその中で読む、という形だけが当たる
+- fused と VM のみビルドでは読み直さず、main.lh からやり直すだけ
+- 例: `testing/lh/reload`（exit=12）
+
 ## エラー表示
 
 型検査エラーは起動前に診断として（lovec はコンソール、love.exe はメッセージボックス）。

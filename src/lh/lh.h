@@ -88,6 +88,9 @@ struct Errors
 	// that would not check or compile.
 	const LhatErrorKind *filesystemIO = nullptr;
 	const LhatErrorKind *filesystemRejected = nullptr;
+	// love.event.Error{Rejected} -- a reload whose units would not check or
+	// compile; the old ones go on running.
+	const LhatErrorKind *eventRejected = nullptr;
 };
 
 // 05 の 8.8: one hostdata tag per LOVE object type. The tag is what a later

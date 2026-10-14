@@ -13,6 +13,23 @@ lhatove の移植中に見つかった、lhat 本体で直すべき事項。解�
 
 ## 解決済み
 
+- **retire した body を「誰も持っていなければ」解放する口**（2026-10-14）
+  → lhat `c174664 Expose safe discard of unheld retired program bodies`。
+  `lhat_program_discard_unheld(program, machines, count)` を公開。停止中の全機械を GC し、
+  旧閉包・コルーチン・pending cleanup が残っていなければ retired body を一括解放する。
+  lhatove は `reloadGame` の join・forget・旧 boot roots 解除後に呼び、保留分は次の reload 境界で再試行する。
+  `testing/lh/reload` は未変更モジュールに保持した旧閉包の実行と、手放した後の再 reload を確認する。
+
+- **親モジュールの登録が、先に登録された子を消す**（2026-10-14）
+  → lhat `4a00edf fix: a unit named under another unit is a member of its table`。`module^game` と
+  `module^game.b` が登録簿の同じ表に同居し、`lhat_machine_forget_unit("game")` は子を残す。以前は親の
+  `compile_module_register` が子を置いた仮の表を自分の封印済み exports で上書きし、後からの `require^` で
+  子の body が二度走って封印済みの表へ書こうとして panic した（再現 [repro/nested_module/](repro/nested_module/)）。
+  続く `c3b6a5f feat: a require^ standing alone binds its root to the registry, live` で、短い形の
+  `require^` の根も `import^` と同じ登録簿の生きた別名になり、親子を同じ単位に短い形で書ける。
+  lhatove の `love.event.reload` は main を forget するので、main の下に名乗る単位
+  （`testing/lh/reload` の `reloadtest.state`）が状態を保つことで確かめた
+
 - **弱参照キャッシュが削除済みキーによって拡大し続ける**（2026-10-06）
   → lhat `ab79670 fix: stop member lookups and built-in method calls from allocating`（`lhat.rev` の `0a9a34d` に含まれる）。`src/vm_machine.c` の再ハッシュで、実際の登録件数に空きがあれば容量を維持するよう修正。
   従来は削除済み枠で占有率が上がった場合にも常に倍増していた。

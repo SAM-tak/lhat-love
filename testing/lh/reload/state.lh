@@ -1,0 +1,22 @@
+# A unit no edit reaches: love.event.reload leaves it loaded, so its count
+# survives into the next world -- under the main unit, whose forget leaves it
+# alone (lhat 4a00edf).
+module^reloadtest.state
+
+var^worlds = 0
+var^oldVersion = f^-> number^{ 0 }
+
+public^let^keep = p^version:f^-> number^;{
+    oldVersion := version
+}
+
+public^let^keptVersion = f^-> number^{ oldVersion() }
+
+public^let^drop = p^{
+    oldVersion := f^-> number^{ 0 }
+}
+
+public^let^enter = p^-> number^{
+    worlds += 1
+    return^worlds
+}

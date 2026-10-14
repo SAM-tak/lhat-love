@@ -1,0 +1,7 @@
+module^game
+let^b1 = require^"b.lh"
+public^let^again = p^-> number^{
+    let^b2 = require^"b.lh"
+    return^b2.bump()
+}
+public^let^first = p^-> number^{ return^b1.bump() }

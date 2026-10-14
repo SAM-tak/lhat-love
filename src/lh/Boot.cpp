@@ -1226,6 +1226,94 @@ const Variant &restartPayload()
 	return restartState.payload;
 }
 
+// What love.event.reload needs of the boot that is running, and what an
+// accepted reload leaves for the frame loop. Set once the game is about to
+// run; cleared when boot() returns.
+//
+// Why not lhat_reload: it checks and frees in one call, and the two belong at
+// different moments here. The check is made inside love.event.reload, so a
+// refusal can be its answer while the old world goes on; freeing is safe
+// only at a frame boundary, once the old world's workers are joined. So the
+// parts are used, and discard_unheld asks whether the retired bodies can go
+// at that boundary. Bodies still held, including pending cleanups, wait for
+// the next reload boundary or the program's destruction.
+struct ReloadState
+{
+	Runtime *runtime = nullptr;
+	const Loader *loader = nullptr;
+	std::string mainUnit;
+	const LhatUnit *root = nullptr;  // the same shell however often it is read again
+	const LhatUnit *bootUnit = nullptr;
+	bool readsUnits = false;         // a full build and a game that is not fused
+	bool pending = false;            // accepted; the frame loop starts the game over
+	std::set<std::string> forget;    // modules of retired units, to forget on the machine
+};
+
+static ReloadState reloadState;
+
+std::string requestReload()
+{
+	if (reloadState.runtime == nullptr)
+		return "love.event.reload: no game is running";
+
+	// The last call decides: one that fails after another was accepted in
+	// the same frame may have retired the main unit, and nothing is left to
+	// start over from until a later one succeeds.
+	reloadState.pending = false;
+
+#ifndef LHATOVE_VM_ONLY
+	if (reloadState.readsUnits)
+	{
+		Runtime &runtime = *reloadState.runtime;
+		LhatProgram *program = runtime.program();
+
+		// The paths first: invalidating does not drop a unit, but reading the
+		// list while the cascade runs over it is not worth reasoning about.
+		std::vector<std::string> paths;
+		for (const LhatUnit *unit = lhat_program_units(program); unit != nullptr; unit = lhat_unit_next(unit))
+			paths.emplace_back(lhat_unit_path(unit));
+		for (const std::string &path : paths)
+			lhat_program_invalidate(program, path.c_str());
+
+		// The module names are read off the stale shells, so before the
+		// recheck reads the texts back in over them. Kept across a failed
+		// attempt: those units are retired whether or not this one succeeds.
+		std::vector<std::string> stale;
+		for (const LhatUnit *unit = lhat_program_units(program); unit != nullptr; unit = lhat_unit_next(unit))
+		{
+			if (lhat_unit_state(unit) != LHAT_UNIT_STALE)
+				continue;
+			stale.emplace_back(lhat_unit_path(unit));
+			const char *module = lhat_unit_module_name(unit);
+			if (module != nullptr)
+				reloadState.forget.insert(module);
+		}
+		for (const std::string &path : stale)
+			runtime.check(path.c_str());
+
+		const LhatUnit *root = runtime.check(reloadState.mainUnit.c_str());
+		if (root == nullptr || !runtime.ok())
+		{
+			std::string said = runtime.diagnostics();
+			return said.empty() ? "Could not read " + reloadState.mainUnit : said;
+		}
+		if (!reloadState.loader->isBinary(reloadState.mainUnit))
+		{
+			std::string problems = checkCallbacks(root);
+			if (!problems.empty())
+				return problems;
+		}
+		// 05 の 5.3: compiling under a running machine is allowed; nothing of
+		// the old world moves.
+		if (!lhat_program_compile(program))
+			return runtime.compileDiagnostics();
+	}
+#endif
+
+	reloadState.pending = true;
+	return "";
+}
+
 // love.boot.restartInto(path): the no-game screen restarting with a
 // dropped game, as nogame.lua returned _noGameRestartInfo.
 static void lh_boot_restartInto(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
@@ -1427,6 +1515,147 @@ static void reportRuntime(const std::string &text)
 	fflush(stderr);
 	if (errorScreenEnabled && !showErrorScreen(text) && !consoleBuild)
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "lhatove: error", text.c_str(), nullptr);
+}
+
+// Runs the game's main unit and starts its run: what a boot does once
+// everything is up, and what love.event.reload does again. True with the
+// run's coroutine when the game is running; false with the exit code when it
+// is already over, having said why where it failed.
+static bool startGame(Runtime &runtime, DebugSession &debugger, LhatValue &coroutine, int &code)
+{
+	LhatMachine *machine = runtime.machine();
+	code = 1;
+
+	trace("running main");
+	// A script answers its return^ and is done;
+	// a module^ unit answers its public table, which is a game.
+	LhatRunResult ran = lhat_run(machine, lhat_unit_proto(reloadState.root));
+	if (ran.status != LHAT_RUN_OK)
+	{
+		reportRuntime(runtime.describe(ran));
+		return false;
+	}
+	if (!lhat_is_object_kind(ran.value, LHAT_OBJECT_TABLE))
+	{
+		code = exitCodeOf(ran.value);
+		return false;
+	}
+
+	LhatValue gameTable = ran.value;
+	if (!park(machine, "boot.game", gameTable))
+	{
+		report("lhatove", "Could not keep the game's module table.");
+		return false;
+	}
+
+	if (!buildHandlers(machine, gameTable))
+	{
+		report("lhatove", "Could not build the callback table.");
+		return false;
+	}
+
+	trace("starting run");
+	// run: the game's own if it exported one, else Boot.lh's.
+	LhatValue run = field(machine, gameTable, "run");
+	if (!lhat_is_object_kind(run, LHAT_OBJECT_SUBROUTINE))
+	{
+		LhatRunResult bootRan = lhat_run(machine, lhat_unit_proto(reloadState.bootUnit));
+		if (bootRan.status != LHAT_RUN_OK || !lhat_is_object_kind(bootRan.value, LHAT_OBJECT_SUBROUTINE))
+		{
+			report("lhatove: error", "Boot.lh did not answer a run procedure: " + runtime.describe(bootRan));
+			return false;
+		}
+		run = bootRan.value;
+	}
+	if (!park(machine, "boot.run", run))
+		return false;
+
+	// 02 の 15.5: calling a yieldable procedure answers its coroutine rather
+	// than running it. A run that never yields answers its value at once.
+	LhatRunResult started = lhat_machine_call(machine, run, nullptr, 0);
+	if (started.status != LHAT_RUN_OK)
+	{
+		if (!debugger.endedRun())
+			reportRuntime(runtime.describe(started));
+		debugger.end(1);
+		return false;
+	}
+	if (!lhat_is_object_kind(started.value, LHAT_OBJECT_COROUTINE))
+	{
+		code = exitCodeOf(started.value);
+		debugger.end(code);
+		return false;
+	}
+
+	coroutine = started.value;
+	return park(machine, "boot.coroutine", coroutine);
+}
+
+// love.event.reload, carried out between two frames. requestReload has
+// already checked and compiled what changed; what is left is to clear what
+// the old world left playing or set, forget its modules on the machine and
+// start over. Drop the host's old roots before asking whether the retired
+// bodies can go; surviving closures and pending cleanups keep them safe.
+static bool reloadGame(Runtime &runtime, DebugSession &debugger, LhatValue &coroutine, int &code)
+{
+	reloadState.pending = false;
+	trace("reloading");
+
+	// The old world's workers end here, as they do at a restart (Runtime's
+	// destructor): the pool is stopped and every spawned thread joined, so
+	// the main machine is the only one left. A worker that never returns
+	// holds the reload up just as it would hold up a restart or a quit. The
+	// named channels go too -- what is in them was meant for the old world.
+	lhatstdlib_task_stop(runtime.program());
+	lhatstdlib_thread_join_all(runtime.program());
+	lhatstdlib_channel_forget_named();
+
+	try
+	{
+		if (auto audio = Module::getInstance<love::audio::Audio>(Module::M_AUDIO))
+			audio->stop();
+		if (auto graphics = Module::getInstance<love::graphics::Graphics>(Module::M_GRAPHICS))
+			graphics->reset();
+		if (auto event = Module::getInstance<love::event::Event>(Module::M_EVENT))
+			event->clear();
+	}
+	catch (const love::Exception &e)
+	{
+		fprintf(stderr, "lhatove: reload: %s\n", e.what());
+	}
+
+	// A unit loads once (vm.h), so the main unit is forgotten even when
+	// nothing it reaches changed: starting over is the point. A module no
+	// retired unit declared keeps its table, and with it its state.
+	LhatMachine *machine = runtime.machine();
+	const char *own = lhat_unit_module_name(reloadState.root);
+	if (own != nullptr)
+		reloadState.forget.insert(own);
+	for (const std::string &module : reloadState.forget)
+		lhat_machine_forget_unit(machine, module.c_str());
+	reloadState.forget.clear();
+
+	// No machine is running, and the workers have gone. Release every old
+	// boot root before collecting; the C++ copies are not GC roots and must
+	// not be used after this. An unchanged module may still hold old code,
+	// or the dropped coroutine may need its finally block to run, so a
+	// refused discard waits for the next reload, when all workers join again.
+	coroutine = lhat_nil();
+	bootState.handlers = lhat_nil();
+	for (const char *key : {"boot.game", "boot.handlers", "boot.run", "boot.coroutine"})
+	{
+		if (!park(machine, key, lhat_nil()))
+		{
+			report("lhatove", "Could not release the old game's boot roots.");
+			code = 1;
+			return false;
+		}
+	}
+	lhat_program_discard_unheld(runtime.program(), &machine, 1);
+	if (tracing)
+		fprintf(stderr, "[reload] retired bodies waiting: %zu\n", lhat_program_retired_count(runtime.program()));
+
+	return startGame(runtime, debugger, coroutine, code);
 }
 
 static int boot(int argc, char **argv, bool console)
@@ -1881,67 +2110,23 @@ static int boot(int argc, char **argv, bool console)
 	if (timer != nullptr)
 		timer->step();
 
-	trace("running main");
-	// A script answers its return^ and is done;
-	// a module^ unit answers its public table, which is a game.
-	LhatRunResult ran = lhat_run(machine, lhat_unit_proto(root));
-	if (ran.status != LHAT_RUN_OK)
+	// love.event.reload from here on; the guard forgets this boot when it
+	// returns, since the runtime and loader die with it.
+	struct ReloadScope
 	{
-		reportRuntime(runtime.describe(ran));
-		return 1;
-	}
-	if (!lhat_is_object_kind(ran.value, LHAT_OBJECT_TABLE))
-		return exitCodeOf(ran.value);
+		~ReloadScope() { reloadState = ReloadState(); }
+	} reloadScope;
+	reloadState.runtime = &runtime;
+	reloadState.loader = &loader;
+	reloadState.mainUnit = mainUnit;
+	reloadState.root = root;
+	reloadState.bootUnit = bootUnit;
+	reloadState.readsUnits = !fused;
 
-	LhatValue gameTable = ran.value;
-	if (!park(machine, "boot.game", gameTable))
-	{
-		report("lhatove", "Could not keep the game's module table.");
-		return 1;
-	}
-
-	if (!buildHandlers(machine, gameTable))
-	{
-		report("lhatove", "Could not build the callback table.");
-		return 1;
-	}
-
-	trace("starting run");
-	// run: the game's own if it exported one, else Boot.lh's.
-	LhatValue run = field(machine, gameTable, "run");
-	if (!lhat_is_object_kind(run, LHAT_OBJECT_SUBROUTINE))
-	{
-		LhatRunResult bootRan = lhat_run(machine, lhat_unit_proto(bootUnit));
-		if (bootRan.status != LHAT_RUN_OK || !lhat_is_object_kind(bootRan.value, LHAT_OBJECT_SUBROUTINE))
-		{
-			report("lhatove: error", "Boot.lh did not answer a run procedure: " + runtime.describe(bootRan));
-			return 1;
-		}
-		run = bootRan.value;
-	}
-	if (!park(machine, "boot.run", run))
-		return 1;
-
-	// 02 の 15.5: calling a yieldable procedure answers its coroutine rather
-	// than running it. A run that never yields answers its value at once.
-	LhatRunResult started = lhat_machine_call(machine, run, nullptr, 0);
-	if (started.status != LHAT_RUN_OK)
-	{
-		if (!debugger.endedRun())
-			reportRuntime(runtime.describe(started));
-		debugger.end(1);
-		return 1;
-	}
-	if (!lhat_is_object_kind(started.value, LHAT_OBJECT_COROUTINE))
-	{
-		int code = exitCodeOf(started.value);
-		debugger.end(code);
+	LhatValue coroutine = lhat_nil();
+	int code = 0;
+	if (!startGame(runtime, debugger, coroutine, code))
 		return code;
-	}
-
-	LhatValue coroutine = started.value;
-	if (!park(machine, "boot.coroutine", coroutine))
-		return 1;
 
 	// One resume per frame until the run returns.
 	// LHATOVE_GC_STATS=<n>: the collector's counts every n frames (1 = every frame).
@@ -1969,10 +2154,12 @@ static int boot(int argc, char **argv, bool console)
 			fprintf(stderr, "[gc] frame %u: collected %zu, live %zu\n", frame, step.collected, step.live);
 		if (lhat_machine_coroutine_done(coroutine))
 		{
-			int code = exitCodeOf(step.value);
+			code = exitCodeOf(step.value);
 			debugger.end(code);
 			return code;
 		}
+		if (reloadState.pending && !reloadGame(runtime, debugger, coroutine, code))
+			return code;
 	}
 }
 
