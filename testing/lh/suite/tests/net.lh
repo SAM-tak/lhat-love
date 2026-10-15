@@ -23,7 +23,7 @@ let^input = std.binary.format(Input, {
 # decode answers the table or a std.binary.Error; try^ needs a procedure
 # whose answer can carry the error.
 let^readsBack = p^data:string^ -> bool^|std.binary.Error {
-    let^got = try^input.decode(data)
+    let^got, _^ = try^input.decode(data, 0)
     return^got.aaa = 11111 and^got.bbb = 111
         and^got.buttonA = true^ and^got.buttonB = true^ and^got.buttonC = false^
 }
