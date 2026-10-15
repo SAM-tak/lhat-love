@@ -127,6 +127,27 @@ static void lh_getRandomSeed(LhatMachine *machine, void *context, const LhatValu
 	seedTuple(instance()->getRandomGenerator()->getSeed(), answers, answerCount);
 }
 
+static void lh_getRandomState(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
+							  LhatValue *answers, int *answerCount)
+{
+	(void) context;
+	(void) arguments;
+	(void) count;
+	lh::guard(machine, [&]() {
+		lh::makeString(machine, instance()->getRandomGenerator()->getState(), &answers[0]);
+		*answerCount = 1;
+	});
+}
+
+static void lh_setRandomState(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
+							  LhatValue *answers, int *answerCount)
+{
+	(void) context;
+	lh::guard(machine, [&]() {
+		instance()->getRandomGenerator()->setState(lh::optString(arguments, count, 0, ""));
+	});
+}
+
 static void lh_newRandomGenerator(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
 								  LhatValue *answers, int *answerCount)
 {
@@ -193,6 +214,31 @@ static void lh_RandomGenerator_getSeed(LhatMachine *machine, void *context, cons
 	if (rng == nullptr)
 		return;
 	seedTuple(rng->getSeed(), answers, answerCount);
+}
+
+static void lh_RandomGenerator_getState(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
+										LhatValue *answers, int *answerCount)
+{
+	(void) context;
+	RandomGenerator *rng = checkRng(machine, arguments, count);
+	if (rng == nullptr)
+		return;
+	lh::guard(machine, [&]() {
+		lh::makeString(machine, rng->getState(), &answers[0]);
+		*answerCount = 1;
+	});
+}
+
+static void lh_RandomGenerator_setState(LhatMachine *machine, void *context, const LhatValue *arguments, size_t count,
+										LhatValue *answers, int *answerCount)
+{
+	(void) context;
+	RandomGenerator *rng = checkRng(machine, arguments, count);
+	if (rng == nullptr)
+		return;
+	lh::guard(machine, [&]() {
+		rng->setState(lh::optString(arguments, count, 1, ""));
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -543,6 +589,8 @@ bool lhopen_love_math(Context &ctx)
 		&& ctx.func(m, "setRandomSeed", "p^number^;", lh_setRandomSeed, nullptr)
 		&& ctx.func(m, "setRandomSeed", "p^number^, number^;", lh_setRandomSeed, nullptr)
 		&& ctx.func(m, "getRandomSeed", "f^ -> (number^, number^);", lh_getRandomSeed, nullptr)
+		&& ctx.func(m, "getRandomState", "f^ -> string^;", lh_getRandomState, nullptr)
+		&& ctx.func(m, "setRandomState", "p^string^;", lh_setRandomState, nullptr)
 		&& ctx.func(m, "newRandomGenerator", "p^ -> love.math.RandomGenerator;", lh_newRandomGenerator, nullptr)
 		&& ctx.func(m, "newRandomGenerator", "p^number^ -> love.math.RandomGenerator;", lh_newRandomGenerator, nullptr)
 		&& ctx.func(m, "newRandomGenerator", "p^number^, number^ -> love.math.RandomGenerator;", lh_newRandomGenerator, nullptr)
@@ -553,6 +601,8 @@ bool lhopen_love_math(Context &ctx)
 		&& ctx.member(m, "RandomGenerator", "setSeed", "p^self^, number^;", lh_RandomGenerator_setSeed, nullptr)
 		&& ctx.member(m, "RandomGenerator", "setSeed", "p^self^, number^, number^;", lh_RandomGenerator_setSeed, nullptr)
 		&& ctx.member(m, "RandomGenerator", "getSeed", "f^self^ -> (number^, number^);", lh_RandomGenerator_getSeed, nullptr)
+		&& ctx.member(m, "RandomGenerator", "getState", "f^self^ -> string^;", lh_RandomGenerator_getState, nullptr)
+		&& ctx.member(m, "RandomGenerator", "setState", "p^self^, string^;", lh_RandomGenerator_setState, nullptr)
 		&& ctx.func(m, "noise", "f^number^, ... -> number^;", lh_noise, nullptr)
 		&& ctx.func(m, "gammaToLinear", "f^number^ -> number^;", lh_gammaToLinear, nullptr)
 		&& ctx.func(m, "gammaToLinear", "f^number^, number^, number^ -> (number^, number^, number^);", lh_gammaToLinear, nullptr)
