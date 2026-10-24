@@ -103,7 +103,7 @@ window = {
 let^ stage = try^ std.lton.load("stages/3.lton")
 ```
 
-`std.lton.load(path)` / `std.lton.parse(text)` はどちらも `f^ -> t^{}|std.lton.LtonError|std.error.OutOfMemory`。
+`std.lton.load(path)` / `std.lton.parse(text)` はどちらも `f^ -> t^{}|std.lton.LtonError|std.sys.Error.OutOfMemory`。
 パスは `require^` と同じく PhysFS 経由なので、ディレクトリ・`.love`・fused のどれでも同じように読める。
 スクリプトを読む `std.load` と違い、読んだ結果が何かを実行することはない。
 

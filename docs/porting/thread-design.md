@@ -295,7 +295,7 @@ Channel の `demand` = ブロックする受信。std.thread にはそれが無�
 移してから見えた、4 章に書けていなかったこと。
 
 - **合併を返す入口が増えるが、読むのは `try^` の仕事。** `std.channel.new()` も `named()` も
-  `spawn()` も `push()` も `|std.error.OutOfMemory` を含む合併で、合併にメンバは無い
+  `spawn()` も `push()` も `|std.sys.Error.OutOfMemory` を含む合併で、合併にメンバは無い
   （`typeof^(c).signature` が `std.channel.Channel` と答えるのは実行時の型なので紛らわしい）。
   ただしこれは `fits^` で包む話ではない — 04 の 4.5 の `catch^` 節（腕）がまさにこのために
   在り、`try^ e` が値を取り出して拒否だけを腕へ送るので、**本体は失敗しない綴りのまま**書ける。

@@ -63,7 +63,7 @@
 #include "stdlib/binary.h"
 #include "stdlib/channel.h"
 #include "stdlib/debug.h"
-#include "stdlib/error.h"
+#include "stdlib/sys.h"
 #include "stdlib/json.h"
 #include "stdlib/load.h"
 #include "stdlib/lton.h"
@@ -181,7 +181,7 @@ static void threadFinished(void *context, void *handle, bool ok, const char *mes
 
 static bool registerStdlib(LhatProgram *program)
 {
-	if (!lhatstdlib_error_register(program)
+	if (!lhatstdlib_sys_register(program)
 		|| !lhatstdlib_debug_register(program)
 		|| !lhatstdlib_regex_register(program)
 		|| !lhatstdlib_load_register(program)
