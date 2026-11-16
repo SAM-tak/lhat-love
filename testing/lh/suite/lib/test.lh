@@ -48,6 +48,6 @@ public^let^notNil = p^label:string^, value:any^{
     record(label, value?, "expected a value, got nil^")
 }
 
-public^let^count = f^-> number^{ checks }
+public^let^count = p^-> number^{ return^checks }
 
-public^let^problems = f^-> t^{string^[]} { failures }
+public^let^problems = p^-> t^{string^[]} { return^failures }

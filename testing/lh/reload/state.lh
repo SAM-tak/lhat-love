@@ -10,7 +10,7 @@ public^let^keep = p^version:f^-> number^;{
     oldVersion := version
 }
 
-public^let^keptVersion = f^-> number^{ oldVersion() }
+public^let^keptVersion = p^-> number^{ return^oldVersion() }
 
 public^let^drop = p^{
     oldVersion := f^-> number^{ 0 }
